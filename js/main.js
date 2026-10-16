@@ -6,9 +6,10 @@ import {
 } from './state.js';
 import * as idb from './idb.js';
 import {
-  TEXT_FX, MOTIONS, HL_FX, MOODS, videoState, timeline, renderVideoFrame, exportVideo, canEncode,
+  TEXT_FX, MOTIONS, HL_FX, MOODS, videoState, timeline, typingTimes, renderVideoFrame, exportVideo, canEncode,
 } from './video.js';
 import { PARTICLES } from './particles.js';
+import { SOUNDS, decodeAudio, renderMix, playMix, stopMix, drawWave } from './audio.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -16,7 +17,13 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const state = loadState();
-const assets = { photo: null, photoId: 0, photoUrl: null, logo: null, bgVideo: null, bgVideoUrl: null };
+const assets = {
+  photo: null, photoId: 0, photoUrl: null, logo: null,
+  bgVideo: null, bgVideoUrl: null, bgVideoBlob: null,
+  music: null, musicName: '', clipAudio: undefined, // clipAudio: undefined = තවම decode කරලා නෑ, null = සද්දයක් නෑ
+};
+// Preview එකටයි export එකටයි යන mix කරපු සද්දය
+const mix = { key: '', buf: null, timer: 0, busy: null };
 // t = null කියන්නේ "edit view": වදන ඔක්කොම පේන අන්තිම frame එක පෙන්නනවා
 const player = { playing: false, t: null, t0: 0, D: 10 };
 
@@ -92,8 +99,10 @@ function draw() {
         player.t = 0;
         player.t0 = performance.now();
         syncBgVideo(true);
+        playMix(mix.buf, 0);
       }
     }
+    scheduleMix(tl.D);
     const t = player.t == null ? Math.min(tl.revealEnd + 0.2, tl.D) : Math.min(player.t, tl.D);
     if (player.t != null) player.t = t;
     layout = renderVideoFrame(ctx, state, assets, { W, H, t, D: tl.D, bg, editor: !player.playing });
@@ -135,12 +144,104 @@ function play() {
   player.playing = true;
   player.t0 = performance.now() - player.t * 1000;
   syncBgVideo(true);
+  playMix(mix.buf, player.t);
   scheduleRender();
 }
 
 function pause() {
   player.playing = false;
   syncBgVideo(false);
+  stopMix();
+  scheduleRender();
+}
+
+// ---------- Music ----------
+
+function mixKey(D) {
+  const a = state.audio;
+  if (a.src === 'none' && !a.clipAudio && !a.typing) return 'silent';
+  return JSON.stringify([a, D, a.typing ? [state.text, state.video.textFx, state.video.speed, state.video.delay, state.video.aspect, tb()] : 0,
+    assets.musicName, a.clipAudio ? assets.bgVideoUrl : 0]);
+}
+
+// සද්දය බලපාන දෙයක් වෙනස් වුණාම (හිමින්) mix එක ආයේ හදනවා
+function scheduleMix(D) {
+  const key = mixKey(D);
+  if (key === mix.key) return;
+  mix.key = key;
+  clearTimeout(mix.timer);
+  mix.timer = setTimeout(() => { mix.busy = buildMix(key); }, 350);
+}
+
+async function buildMix(key) {
+  const bg = bgMedia();
+  const { D } = timeline(state, bg);
+  const a = state.audio;
+  if (a.clipAudio && assets.clipAudio === undefined && assets.bgVideoBlob) {
+    try { assets.clipAudio = await decodeAudio(assets.bgVideoBlob); } catch { assets.clipAudio = null; }
+    if (!assets.clipAudio) toast('මේ video clip එකේ සද්දයක් නෑ');
+  }
+  let buf = null;
+  try {
+    buf = await renderMix({
+      a, D, music: assets.music, clip: bgMedia() === assets.bgVideo ? assets.clipAudio : null,
+      typing: a.typing ? typingTimes(state, bg) : [],
+    });
+  } catch (err) {
+    console.error(err);
+  }
+  if (key !== mix.key) return null; // මේ අතරේ ආයේ වෙනස් වෙලා, අලුත් එකක් හැදෙනවා
+  mix.buf = buf;
+  if (player.playing) playMix(buf, player.t);
+  return buf;
+}
+
+// Export කරන්න කලින් අලුත්ම mix එක අනිවාර්යයෙන් හදාගන්නවා
+async function freshMix() {
+  const { D } = timeline(state, bgMedia());
+  const key = mixKey(D);
+  clearTimeout(mix.timer);
+  if (key !== mix.key || !mix.busy) {
+    mix.key = key;
+    mix.busy = buildMix(key);
+  }
+  await mix.busy;
+  return mix.key === key ? mix.buf : null;
+}
+
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function updateMusicUI() {
+  const a = state.audio;
+  $('#musicBox').hidden = a.src !== 'file';
+  $('#musicName').textContent = assets.music ? `🎵 ${assets.musicName} (${mmss(assets.music.duration)})` : 'තවම සින්දුවක් තෝරලා නෑ';
+  $('#startOut').textContent = mmss(a.start);
+  if (assets.music) $('#musicStart').max = String(Math.max(0, assets.music.duration - 1));
+  if (a.src === 'file' && $('[data-pane=music]').classList.contains('on')) {
+    drawWave($('#wave'), assets.music, a.start, player.D, { on: '#f0cf95', off: '#3a4d6b', window: 'rgba(240,207,149,.12)' });
+  }
+}
+
+async function setMusic(blob, name, isNew = true) {
+  if (isNew) toast('🎵 සින්දුව load කරනවා...');
+  let buf;
+  try {
+    buf = await decodeAudio(blob);
+  } catch {
+    toast('😕 මේ සින්දුව open කරන්න බැරි වුණා');
+    return;
+  }
+  assets.music = buf;
+  assets.musicName = name;
+  if (isNew) {
+    state.audio.src = 'file';
+    state.audio.start = 0;
+    idb.set('music', { blob, name });
+    syncInputs();
+    saveSoon();
+    toast('✅ සින්දුව දැම්මා. Waveform එකෙන් කොටස තෝරන්න');
+  }
+  updateMusicUI();
   scheduleRender();
 }
 
@@ -162,8 +263,10 @@ function changed(path) {
     syncInputs();
   }
   if (path === 'video.bg') syncBgVideo(true);
-  // Effect එකක් තේරුවම මුල ඉඳන් play කරලා පෙන්නනවා
-  if (['video.textFx', 'video.particles', 'video.motion', 'video.hlFx'].includes(path)) playFrom(0);
+  if (path === 'audio.src' && state.audio.src === 'file' && !assets.music) $('#fileMusic').click();
+  if (path.startsWith('audio.')) updateMusicUI();
+  // Effect එකක් හරි සද්දයක් හරි තේරුවම මුල ඉඳන් play කරලා පෙන්නනවා
+  if (['video.textFx', 'video.particles', 'video.motion', 'video.hlFx', 'audio.src', 'audio.typing', 'audio.clipAudio'].includes(path)) playFrom(0);
   scheduleRender();
   saveSoon();
 }
@@ -298,6 +401,8 @@ async function setBgVideo(blob, isNew = true) {
   v.addEventListener('seeked', scheduleRender);
   assets.bgVideo = v;
   assets.bgVideoUrl = url;
+  assets.bgVideoBlob = blob;
+  assets.clipAudio = undefined;
   if (isNew) {
     state.photo = { zoom: 1, panX: 0, panY: 0 };
     state.video.bg = 'video';
@@ -424,6 +529,7 @@ function selectTab(name) {
   for (const x of $$('#tabs button')) x.classList.toggle('on', x.dataset.tab === name);
   for (const p of $$('.pane')) p.classList.toggle('on', p.dataset.pane === name);
   if (name === 'style') renderThumbs();
+  if (name === 'music') requestAnimationFrame(updateMusicUI); // canvas එක පේනවා නම් විතරයි waveform අඳින්න පුළුවන්
 }
 
 function setAppMode(m) {
@@ -431,6 +537,7 @@ function setAppMode(m) {
   const vid = m === 'video';
   for (const b of $$('#appModeSeg button')) b.classList.toggle('on', b.dataset.appmode === m);
   $('[data-tab=video]').hidden = !vid;
+  $('[data-tab=music]').hidden = !vid;
   $('#transport').hidden = !vid;
   $('#aspectSeg').dataset.seg = vid ? 'video.aspect' : 'aspect';
   // අකුරු tab එකේ ප්‍රමාණය/තැන controls දැන් mode එකේ text box එකට bind කරනවා
@@ -439,7 +546,7 @@ function setAppMode(m) {
   $('#btnExport').textContent = vid ? '🎬 Video එක' : '💾 Save';
   const cur = $('#tabs button.on')?.dataset.tab;
   if (vid) selectTab('video');
-  else if (cur === 'video') selectTab('text');
+  else if (cur === 'video' || cur === 'music') selectTab('text');
   if (!vid) pause();
   syncInputs();
   saveSoon();
@@ -455,12 +562,16 @@ function buildVideoUI() {
   $('#particleGrid').innerHTML = PARTICLES.map((p) => fxButton(p.id, p.icon, p.name)).join('');
   $('#hlFxSeg').innerHTML = HL_FX.map((h) => `<button data-val="${h.id}">${esc(h.name)}</button>`).join('');
   $('#motionSeg').innerHTML = MOTIONS.map((m) => `<button data-val="${m.id}">${esc(m.name)}</button>`).join('');
+  $('#soundGrid').innerHTML = SOUNDS.map((s) => fxButton(s.id, s.icon, s.name)).join('');
   $('#moodGrid').innerHTML = MOODS.map((m) => `<button data-mood="${m.id}">${esc(m.name)}</button>`).join('');
   $('#moodGrid').addEventListener('click', (e) => {
     const b = e.target.closest('[data-mood]');
     if (!b) return;
     const mood = MOODS.find((m) => m.id === b.dataset.mood);
     deepMerge(state.video, clone(mood.video));
+    // එයා තෝරපු සින්දුවක් තියෙනවා නම් ඒක වෙනස් කරන්නේ නෑ
+    if (state.audio.src !== 'file') state.audio.src = mood.sound;
+    updateMusicUI();
     syncInputs();
     saveSoon();
     playFrom(0);
@@ -485,7 +596,9 @@ function resetVideoDialog() {
   const short = state.video.quality === '720' ? 720 : 1080;
   const s = short / Math.min(bw, bh);
   const { D } = timeline(state, bg);
-  $('#vidInfo').textContent = `${Math.round(bw * s)}×${Math.round(bh * s)} • තත්පර ${fmt(D)} • 30fps • MP4`;
+  const a = state.audio;
+  const sound = a.src !== 'none' || a.clipAudio || a.typing ? '🎵 සද්දය එක්ක' : '🔇 සද්දයක් නෑ';
+  $('#vidInfo').textContent = `${Math.round(bw * s)}×${Math.round(bh * s)} • තත්පර ${fmt(D)} • 30fps • MP4 • ${sound}`;
 }
 
 async function makeVideo() {
@@ -499,8 +612,10 @@ async function makeVideo() {
   let lock = null;
   try { lock = await navigator.wakeLock?.request('screen'); } catch { /* wake lock නැත්නම් කමක් නෑ */ }
   try {
-    const blob = await exportVideo({
-      st: clone(state), assets, bg: bgMedia(), quality: state.video.quality, signal: vidAbort.signal,
+    bar.lastElementChild.textContent = '🎵 සද්දය ලෑස්ති කරනවා...';
+    const audio = await freshMix();
+    const { blob, audioCodec } = await exportVideo({
+      st: clone(state), assets, bg: bgMedia(), quality: state.video.quality, audio, signal: vidAbort.signal,
       onProgress: (p) => {
         bar.firstElementChild.style.width = `${(p * 100).toFixed(1)}%`;
         bar.lastElementChild.textContent = p < 1 ? `හදනවා... ${Math.floor(p * 100)}%` : '✅ ලෑස්තියි!';
@@ -510,7 +625,8 @@ async function makeVideo() {
     $('#btnVidDownload').hidden = false;
     $('#btnVidShare').hidden = false;
     $('#btnVidClose').textContent = 'වහන්න';
-    toast('✅ Video එක ලෑස්තියි!');
+    if (audio && !audioCodec) toast('⚠️ Video එක හැදුණා, ඒත් මේ device එකේ සද්දය දාන්න බැරි වුණා');
+    else toast('✅ Video එක ලෑස්තියි!');
   } catch (err) {
     if (err.name === 'AbortError') toast('Video එක හදන එක නැවැත්තුවා');
     else if (err.message === 'nocodec') toast('😕 මේ device එකේ MP4 හදන්න බෑ');
@@ -725,6 +841,28 @@ function wire() {
   });
   scrub.addEventListener('change', () => { scrubbing = false; });
 
+  $('#btnMusic').addEventListener('click', () => $('#fileMusic').click());
+  $('#fileMusic').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (f) setMusic(f, f.name.replace(/\.[^.]+$/, ''));
+    else if (!assets.music) { state.audio.src = 'none'; syncInputs(); updateMusicUI(); }
+    e.target.value = '';
+  });
+  // Waveform එකේ tap / drag කරලා සින්දුවේ පටන් ගන්න තැන තෝරන්න (තෝරපු කොටසේ මැද එතනට එනවා)
+  const wave = $('#wave');
+  const pickStart = (e) => {
+    if (!assets.music) return;
+    const r = wave.getBoundingClientRect();
+    const at = ((e.clientX - r.left) / r.width) * assets.music.duration;
+    state.audio.start = Math.round(clamp(at - player.D / 2, 0, Math.max(0, assets.music.duration - 1)) * 10) / 10;
+    syncInputs();
+    updateMusicUI();
+    saveSoon();
+  };
+  wave.addEventListener('pointerdown', (e) => { wave.setPointerCapture(e.pointerId); pickStart(e); });
+  wave.addEventListener('pointermove', (e) => { if (wave.hasPointerCapture(e.pointerId)) pickStart(e); });
+  wave.addEventListener('pointerup', () => { scheduleRender(); playFrom(0); });
+
   $('#btnBgVideo').addEventListener('click', () => $('#fileVideo').click());
   $('#fileVideo').addEventListener('change', (e) => {
     const f = e.target.files[0];
@@ -836,6 +974,9 @@ async function init() {
   if (blob) await setPhotoFromBlob(blob, false);
   const vblob = await idb.get('bgvideo');
   if (vblob) await setBgVideo(vblob, false);
+  const saved = await idb.get('music');
+  if (saved?.blob) await setMusic(saved.blob, saved.name, false);
+  updateMusicUI();
   preloadAllFonts();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

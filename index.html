@@ -52,6 +52,7 @@
     <aside class="panel">
       <nav class="tabs" id="tabs">
         <button data-tab="video" hidden>🎬<span>Video</span></button>
+        <button data-tab="music" hidden>🎵<span>Music</span></button>
         <button data-tab="text" class="on">📝<span>වදන</span></button>
         <button data-tab="style">🎨<span>ස්ටයිල්</span></button>
         <button data-tab="font">🔤<span>අකුරු</span></button>
@@ -97,7 +98,37 @@
         <label class="row"><span>අන්තිමට නවතින කාලය</span><input type="range" data-bind="video.hold" min="1" max="12" step="0.5"></label>
         <label class="row"><span>තමන්ම දිග දාන්න (<b id="durOut">-</b>)</span><input type="range" data-bind="video.duration" min="4" max="60" step="0.5"></label>
         <label class="row check"><input type="checkbox" data-bind="video.fade"><span>මුලයි අගයි කළු පාටින් fade වෙන්න</span></label>
-        <p class="note">🎵 Music එක ඊළඟ update එකේ එනවා. දැනට video එකට සද්දයක් නෑ.</p>
+      </div>
+
+      <!-- Music -->
+      <div class="pane" data-pane="music">
+        <h3>🎵 සද්දය / Music</h3>
+        <div class="fxgrid small" data-seg="audio.src" id="soundGrid"></div>
+
+        <div id="musicBox" hidden>
+          <div class="toolbar">
+            <button id="btnMusic" class="btn primary">🎵 සින්දුවක් තෝරන්න</button>
+          </div>
+          <p class="note" id="musicName">තවම සින්දුවක් තෝරලා නෑ</p>
+          <canvas id="wave" class="wave" title="සින්දුවේ පටන් ගන්න ඕනේ තැන tap කරන්න"></canvas>
+          <label class="row"><span>පටන් ගන්න තැන (<b id="startOut">0:00</b>)</span><input type="range" data-bind="audio.start" id="musicStart" min="0" max="60" step="0.1"></label>
+          <p class="note">💡 Waveform එකේ tap කරලා සින්දුවේ කැමති කොටස (chorus එක වගේ) තෝරන්න. පාට වෙලා තියෙන කොටස තමයි video එකට යන්නේ.</p>
+        </div>
+
+        <label class="row"><span>Volume</span><input type="range" data-bind="audio.volume" min="0" max="1" step="0.05"></label>
+        <label class="row"><span>Fade in (තත්පර)</span><input type="range" data-bind="audio.fadeIn" min="0" max="5" step="0.25"></label>
+        <label class="row"><span>Fade out (තත්පර)</span><input type="range" data-bind="audio.fadeOut" min="0" max="8" step="0.25"></label>
+
+        <h3>⌨️ Typewriter සද්දය</h3>
+        <label class="row check"><input type="checkbox" data-bind="audio.typing"><span>වචනයක් එන හැම වෙලාවකම "ටක්" සද්දයක්</span></label>
+        <label class="row"><span>සද්දේ ප්‍රමාණය</span><input type="range" data-bind="audio.typingVolume" min="0.1" max="1" step="0.05"></label>
+        <p class="note">Typewriter animations දෙකට විතරයි මේක වැඩ කරන්නේ.</p>
+
+        <h3>🎞️ Video clip එකේ සද්දය</h3>
+        <label class="row check"><input type="checkbox" data-bind="audio.clipAudio"><span>Background video clip එකේ සද්දයත් දාන්න</span></label>
+        <label class="row"><span>සද්දේ ප්‍රමාණය</span><input type="range" data-bind="audio.clipVolume" min="0" max="1" step="0.05"></label>
+
+        <p class="note warn">⚠️ ප්‍රසිද්ධ සින්දු Facebook එකට දැම්මොත් copyright නිසා mute වෙන්න හරි block වෙන්න හරි පුළුවන්. 🎹 Piano, 🌌 Ambient, 🌧️ වැස්ස, 🌊 රළ කියන ඒවා app එකම හදන නිසා ඒවා copyright-free.</p>
       </div>
 
       <!-- වදන -->
@@ -290,6 +321,7 @@
   <input type="file" id="filePhoto" accept="image/*" hidden>
   <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
   <input type="file" id="fileVideo" accept="video/*" hidden>
+  <input type="file" id="fileMusic" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" hidden>
 
   <script type="module" src="js/main.js"></script>
 </body>

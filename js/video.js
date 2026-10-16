@@ -37,12 +37,12 @@ export const HL_FX = [
 
 // එක tap එකෙන් video ස්ටයිල් එකක්
 export const MOODS = [
-  { id: 'love', name: '💕 ආදර', video: { textFx: 'fadeword', particles: 'petals', particleColor: '#ffb3c6', motion: 'zoomin', hlFx: 'glow' } },
-  { id: 'sad', name: '💔 විරහ', video: { textFx: 'typeword', particles: 'rain', particleColor: '#cfe0ff', motion: 'zoomout', hlFx: 'none' } },
-  { id: 'night', name: '🌙 සඳ එළිය', video: { textFx: 'typeword', particles: 'stars', particleColor: '#ffffff', motion: 'zoomin', hlFx: 'glow' } },
-  { id: 'dream', name: '💭 සිහින', video: { textFx: 'blurin', particles: 'bokeh', particleColor: '#ffe2b0', motion: 'panright', hlFx: 'glow' } },
-  { id: 'heart', name: '💓 හද ගැස්ම', video: { textFx: 'pop', particles: 'hearts', particleColor: '#ff6f91', motion: 'zoomin', hlFx: 'beat' } },
-  { id: 'calm', name: '🌿 සන්සුන්', video: { textFx: 'fadeline', particles: 'fireflies', particleColor: '#ffe680', motion: 'panleft', hlFx: 'none' } },
+  { id: 'love', name: '💕 ආදර', sound: 'piano', video: { textFx: 'fadeword', particles: 'petals', particleColor: '#ffb3c6', motion: 'zoomin', hlFx: 'glow' } },
+  { id: 'sad', name: '💔 විරහ', sound: 'rain', video: { textFx: 'typeword', particles: 'rain', particleColor: '#cfe0ff', motion: 'zoomout', hlFx: 'none' } },
+  { id: 'night', name: '🌙 සඳ එළිය', sound: 'pad', video: { textFx: 'typeword', particles: 'stars', particleColor: '#ffffff', motion: 'zoomin', hlFx: 'glow' } },
+  { id: 'dream', name: '💭 සිහින', sound: 'pad', video: { textFx: 'blurin', particles: 'bokeh', particleColor: '#ffe2b0', motion: 'panright', hlFx: 'glow' } },
+  { id: 'heart', name: '💓 හද ගැස්ම', sound: 'piano', video: { textFx: 'pop', particles: 'hearts', particleColor: '#ff6f91', motion: 'zoomin', hlFx: 'beat' } },
+  { id: 'calm', name: '🌿 සන්සුන්', sound: 'waves', video: { textFx: 'fadeline', particles: 'fireflies', particleColor: '#ffe680', motion: 'panleft', hlFx: 'none' } },
 ];
 
 const clamp01 = (p) => (p < 0 ? 0 : p > 1 ? 1 : p);
@@ -139,16 +139,36 @@ function makeAnim(lay, st, t) {
 // ---------- Timeline ----------
 
 let scratch = null;
-// revealEnd = වදන ඔක්කොම පේන්න ගන්න වෙලාව, D = video එකේ මුළු දිග
-export function timeline(st, bg) {
+function textSchedule(st, bg) {
   scratch ??= document.createElement('canvas').getContext('2d');
   const vst = videoState(st);
   const [W, H] = sceneSize(vst, bg);
   const lay = layoutText(scratch, vst, W, H);
   const fx = FX[st.video.textFx] || FX.typeword;
-  const revealEnd = fx.id === 'none' ? 0 : buildSchedule(lay, fx, st.video).end;
+  return { lay, fx, sch: buildSchedule(lay, fx, st.video) };
+}
+
+// revealEnd = වදන ඔක්කොම පේන්න ගන්න වෙලාව, D = video එකේ මුළු දිග
+export function timeline(st, bg) {
+  const { fx, sch } = textSchedule(st, bg);
+  const revealEnd = fx.id === 'none' ? 0 : sch.end;
   const auto = Math.max(5, Math.ceil((revealEnd + st.video.hold) * 2) / 2);
   return { revealEnd, auto, D: st.video.autoLen ? auto : st.video.duration };
+}
+
+// Typewriter සද්දය එන්න ඕනේ වෙලාවල් (වචනයක් හරි අකුරක් හරි මතු වෙන හැම වෙලාවම)
+export function typingTimes(st, bg) {
+  const { lay, fx, sch } = textSchedule(st, bg);
+  if (fx.unit !== 'word' && fx.unit !== 'char') return [];
+  const times = [];
+  for (const l of lay.lines) {
+    if (l.type !== 'text') continue;
+    for (const w of l.words) {
+      if (fx.unit === 'word') times.push(sch.starts[w.gi]);
+      else for (let k = 0; k < sch.chars[w.gi]; k++) times.push(sch.starts[w.gi] + k * sch.step);
+    }
+  }
+  return times;
 }
 
 // ---------- Frame ----------
@@ -220,8 +240,47 @@ function seekVideo(vid, time) {
 
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 
-// { st, assets, bg, quality: '720'|'1080', onProgress(0..1), signal } → MP4 Blob
-export async function exportVideo({ st, assets, bg, quality, onProgress, signal }) {
+// AAC තමයි හොඳම (හැම තැනම play වෙනවා). බැරි නම් Opus.
+async function pickAudioConfig(sampleRate, numberOfChannels) {
+  if (typeof window.AudioEncoder !== 'function') return null;
+  for (const [codec, mux] of [['mp4a.40.2', 'aac'], ['opus', 'opus']]) {
+    const cfg = { codec, sampleRate, numberOfChannels, bitrate: 192000 };
+    try {
+      const r = await AudioEncoder.isConfigSupported(cfg);
+      if (r.supported) return { cfg: r.config, mux };
+    } catch { /* ඊළඟ එක */ }
+  }
+  return null;
+}
+
+async function encodeAudio(buf, acfg, muxer, signal) {
+  let err = null;
+  const enc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { err = e; } });
+  enc.configure(acfg.cfg);
+  const sr = buf.sampleRate, n = buf.length, step = 4800;
+  const L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+  try {
+    for (let i = 0; i < n; i += step) {
+      if (signal?.aborted) throw new DOMException('cancelled', 'AbortError');
+      if (err) throw err;
+      const len = Math.min(step, n - i);
+      const data = new Float32Array(len * 2);
+      data.set(L.subarray(i, i + len), 0);
+      data.set(R.subarray(i, i + len), len);
+      const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: len, numberOfChannels: 2, timestamp: Math.round((i * 1e6) / sr), data });
+      enc.encode(ad);
+      ad.close();
+    }
+    await enc.flush();
+    if (err) throw err;
+  } finally {
+    if (enc.state !== 'closed') enc.close();
+  }
+}
+
+// { st, assets, bg, quality: '720'|'1080', audio (AudioBuffer|null), onProgress(0..1), signal }
+// → { blob, audioCodec } (audioCodec = 'aac' | 'opus' | null)
+export async function exportVideo({ st, assets, bg, quality, audio, onProgress, signal }) {
   const vst = videoState(st);
   const [bw, bh] = sceneSize(vst, bg);
   const short = quality === '720' ? 720 : 1080;
@@ -239,11 +298,15 @@ export async function exportVideo({ st, assets, bg, quality, onProgress, signal 
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
+  const acfg = audio ? await pickAudioConfig(audio.sampleRate, 2) : null;
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: { codec: 'avc', width: W, height: H, frameRate: fps },
+    ...(acfg ? { audio: { codec: acfg.mux, numberOfChannels: 2, sampleRate: audio.sampleRate } } : {}),
     fastStart: 'in-memory',
+    firstTimestampBehavior: 'offset',
   });
+  if (acfg) await encodeAudio(audio, acfg, muxer, signal);
   let encErr = null;
   const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { encErr = e; } });
   enc.configure(config);
@@ -273,5 +336,5 @@ export async function exportVideo({ st, assets, bg, quality, onProgress, signal 
   }
   muxer.finalize();
   onProgress?.(1);
-  return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+  return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), audioCodec: acfg?.mux ?? null };
 }

@@ -119,6 +119,17 @@ export const DEFAULT_STATE = {
     fade: true,
     quality: '1080',
   },
+  audio: {
+    src: 'none', // 'none' | 'file' | 'piano' | 'pad' | 'rain' | 'waves'
+    start: 0, // සින්දුවේ පටන් ගන්න තැන (තත්පර)
+    volume: 0.85,
+    fadeIn: 1,
+    fadeOut: 2.5,
+    clipAudio: false,
+    clipVolume: 0.6,
+    typing: false,
+    typingVolume: 0.5,
+  },
   text: DEFAULT_TEXT,
   photo: { zoom: 1, panX: 0, panY: 0 },
   // x, y = text එකේ මැද (0..1). size = අකුරු ප්‍රමාණය (කෙටි පැත්තේ භාගයක් විදිහට)

@@ -1,10 +1,10 @@
 // Offline වැඩ කරන්න app එකේ files cache කරනවා.
 // Internet තියෙනවා නම් අලුත්ම එක ගන්නවා (updates ඉක්මනට එන්න), නැත්නම් / හෙමින් නම් cache එකෙන්.
-const CACHE = 'sandadiya-v2';
+const CACHE = 'sandadiya-v3';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/main.js', 'js/render.js', 'js/markup.js', 'js/state.js', 'js/idb.js',
-  'js/video.js', 'js/particles.js', 'js/vendor/mp4-muxer.mjs',
+  'js/video.js', 'js/particles.js', 'js/audio.js', 'js/vendor/mp4-muxer.mjs',
   'icons/icon-192.png', 'icons/icon-512.png',
   'fonts/AbhayaLibre-Regular.ttf', 'fonts/AbhayaLibre-Bold.ttf', 'fonts/AbhayaLibre-ExtraBold.ttf',
   'fonts/NotoSansSinhala.ttf', 'fonts/NotoSerifSinhala.ttf', 'fonts/GemunuLibre.ttf', 'fonts/Yaldevi.ttf',
