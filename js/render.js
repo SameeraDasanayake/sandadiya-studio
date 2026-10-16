@@ -19,9 +19,13 @@ export const ASPECTS = {
   '16:9': [1920, 1080],
 };
 
+// <img> එකේ naturalWidth, <video> එකේ videoWidth
+export const mediaSize = (m) => [m.videoWidth || m.naturalWidth || m.width, m.videoHeight || m.naturalHeight || m.height];
+
 export function sceneSize(st, photo) {
   if (st.aspect === 'photo' && photo) {
-    const r = photo.height / photo.width;
+    const [pw, ph] = mediaSize(photo);
+    const r = ph / pw;
     return r >= 1 ? [1080, Math.round(1080 * r)] : [Math.round(1080 / r), 1080];
   }
   return ASPECTS[st.aspect] || ASPECTS['1:1'];
@@ -39,15 +43,16 @@ function rgba(hex, a) {
 // ---------- Background ----------
 
 export function photoGeom(st, img, W, H) {
-  const s = Math.max(W / img.width, H / img.height) * st.photo.zoom;
-  const dw = img.width * s, dh = img.height * s;
+  const [iw, ih] = mediaSize(img);
+  const s = Math.max(W / iw, H / ih) * st.photo.zoom;
+  const dw = iw * s, dh = ih * s;
   const ox = dw - W, oy = dh - H;
   return { x: -ox / 2 + st.photo.panX * ox / 2, y: -oy / 2 + st.photo.panY * oy / 2, dw, dh, ox, oy };
 }
 
-function paintBackground(ctx, st, assets, W, H) {
+export function paintBackground(ctx, st, assets, W, H) {
   const a = st.adjust;
-  const img = assets.photo;
+  const img = assets.photo && mediaSize(assets.photo)[0] ? assets.photo : null;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
   if (img) {
@@ -222,7 +227,7 @@ export function layoutText(ctx, st, W, H) {
         ctx.font = font;
         const mt = ctx.measureText(plain.slice(j, k));
         runs.push({
-          text: plain.slice(j, k), font, size, color, w: mt.width,
+          text: plain.slice(j, k), font, size, color, hl, w: mt.width,
           asc: mt.fontBoundingBoxAscent ?? size * 0.9, desc: mt.fontBoundingBoxDescent ?? size * 0.3,
         });
         j = k;
@@ -258,7 +263,10 @@ export function layoutText(ctx, st, W, H) {
   const cx = tb.x * W, cy = tb.y * H;
   let y = cy - totalH / 2;
   const wordBoxes = [];
+  let gi = 0; // animation වලට: වචන සහ ඉරි වලට පිළිවෙලට අංක
   for (const l of out) {
+    if (l.type === 'divider') l.gi = gi++;
+    if (l.type === 'text') for (const w of l.words) w.gi = gi++;
     l.top = y;
     l.cy = y + l.h / 2;
     if (tb.align === 'left') l.x = cx - blockW / 2;
@@ -275,19 +283,40 @@ export function layoutText(ctx, st, W, H) {
     }
     y += l.h;
   }
-  return { lines: out, base, bounds: { x: cx - blockW / 2, y: cy - totalH / 2, w: blockW, h: totalH }, words: wordBoxes };
+  return { lines: out, base, units: gi, bounds: { x: cx - blockW / 2, y: cy - totalH / 2, w: blockW, h: totalH }, words: wordBoxes };
 }
 
-function drawRun(ctx, st, r, x, y, U) {
+// අකුරෙන් අකුර typewriter එකට. ZWJ එකක් තියෙනවා නම් (රකාරාංශය, යංසය, බැඳි අකුරු)
+// ඒ කෑලි එකට තියාගන්නවා, නැත්නම් "ශ්‍රී" වගේ ඒවා කැඩිලා පේනවා.
+const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('si', { granularity: 'grapheme' }) : null;
+export function graphemes(s) {
+  const parts = segmenter ? [...segmenter.segment(s)].map((x) => x.segment) : [...s];
+  const out = [];
+  for (const p of parts) {
+    const prev = out[out.length - 1];
+    if (prev && (prev.endsWith('‍') || p.startsWith('‍'))) out[out.length - 1] = prev + p;
+    else out.push(p);
+  }
+  return out;
+}
+
+// boost = highlight වචන වලට එකතු වෙන අමතර දීප්තිය (video එකේ pulse effect එක)
+function drawRun(ctx, st, r, text, x, y, U, boost = 0) {
   const e = st.effects;
   ctx.font = r.font;
+  ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
   if (e.glow > 0) {
     ctx.shadowColor = rgba(e.glowColor, Math.min(1, e.glow));
     ctx.shadowBlur = r.size * 0.6 * (0.6 + e.glow);
-    ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
     ctx.fillStyle = r.color;
-    ctx.fillText(r.text, x, y);
-    ctx.fillText(r.text, x, y);
+    ctx.fillText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
+  if (boost > 0.01) {
+    ctx.shadowColor = rgba(r.color, Math.min(1, boost));
+    ctx.shadowBlur = r.size * (0.4 + boost * 0.8);
+    ctx.fillStyle = r.color;
+    ctx.fillText(text, x, y);
   }
   const hasShadow = e.shadowOpacity > 0;
   ctx.shadowColor = hasShadow ? rgba(e.shadowColor, e.shadowOpacity) : 'transparent';
@@ -298,28 +327,64 @@ function drawRun(ctx, st, r, x, y, U) {
     ctx.lineJoin = 'round';
     ctx.lineWidth = r.size * e.strokeWidth * 0.12;
     ctx.strokeStyle = e.strokeColor;
-    ctx.strokeText(r.text, x, y);
+    ctx.strokeText(text, x, y);
     ctx.shadowColor = 'transparent';
   }
   ctx.fillStyle = r.color;
-  ctx.fillText(r.text, x, y);
+  ctx.fillText(text, x, y);
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
 }
 
-export function drawText(ctx, st, lay, W, H) {
+// Animation state එකක් (alpha, dy, scale, blur) වචනයකට හරි ඉරකට හරි දානවා
+function applyFx(ctx, a, dy, s, blur, cx, cy) {
+  ctx.globalAlpha *= a;
+  if (dy) ctx.translate(0, dy);
+  if (s !== 1) {
+    ctx.translate(cx, cy);
+    ctx.scale(s, s);
+    ctx.translate(-cx, -cy);
+  }
+  if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+}
+
+// anim (optional, video එකට): { unit(gi) → {a, dy, s, blur, chars} | null, hlGlow, hlScale }
+export function drawText(ctx, st, lay, W, H, anim = null) {
   const U = Math.min(W, H);
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   for (const l of lay.lines) {
     if (l.type === 'divider') {
+      const s = anim?.unit(l.gi);
+      if (s && s.a <= 0.001) continue;
+      ctx.save();
+      if (s) applyFx(ctx, s.a, s.dy, s.s, s.blur, l.x + l.w / 2, l.cy);
       drawDivider(ctx, st.divider.style, l.x + l.w / 2, l.cy, l.w, lay.base, st.divider.color);
+      ctx.restore();
     } else if (l.type === 'text') {
       const baseline = l.cy + (l.asc - l.desc) / 2;
       for (const w of l.words) {
+        const s = anim?.unit(w.gi);
+        if (s && s.a <= 0.001) continue;
+        const hasHl = anim && w.runs.some((r) => r.hl);
+        const scale = (s ? s.s : 1) * (hasHl ? anim.hlScale : 1);
+        ctx.save();
+        applyFx(ctx, s ? s.a : 1, s ? s.dy : 0, scale, s ? s.blur : 0, w.x + w.w / 2, l.cy);
         let x = w.x;
-        for (const r of w.runs) { drawRun(ctx, st, r, x, baseline, U); x += r.w; }
+        let left = s?.chars ?? Infinity;
+        for (const r of w.runs) {
+          if (left <= 0) break;
+          let text = r.text;
+          if (left !== Infinity) {
+            const gs = graphemes(r.text);
+            if (gs.length > left) text = gs.slice(0, left).join('');
+            left -= gs.length;
+          }
+          drawRun(ctx, st, r, text, x, baseline, U, r.hl && anim ? anim.hlGlow : 0);
+          x += r.w;
+        }
+        ctx.restore();
       }
     }
   }
@@ -377,16 +442,24 @@ function drawWatermark(ctx, st, assets, W, H) {
 
 // ---------- Scene ----------
 
-// opts: { W, H, editor, cache }
+// opts: { W, H, editor, cache,
+//         afterBackground(ctx, W, H) — video particles,
+//         makeAnim(layout) — video text animation,
+//         fade — 0..1 කළු වෙන ප්‍රමාණය (video එකේ පටන් ගැනීම/අවසානය) }
 export function renderScene(ctx, st, assets, opts) {
   const { W, H } = opts;
   ctx.save();
   ctx.clearRect(0, 0, W, H);
   drawBackground(ctx, st, assets, W, H, opts.cache);
+  opts.afterBackground?.(ctx, W, H);
   drawBorder(ctx, st, W, H);
   const lay = layoutText(ctx, st, W, H);
-  drawText(ctx, st, lay, W, H);
+  drawText(ctx, st, lay, W, H, opts.makeAnim ? opts.makeAnim(lay) : null);
   drawWatermark(ctx, st, assets, W, H);
+  if (opts.fade > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(1, opts.fade)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
   if (opts.editor && lay.lines.length) {
     const p = lay.base * 0.5, b = lay.bounds;
     ctx.setLineDash([Math.max(4, W * 0.008), Math.max(4, W * 0.006)]);

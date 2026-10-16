@@ -195,3 +195,42 @@ body { overflow: hidden; display: flex; flex-direction: column; height: 100vh; h
   .brand span { display: none; }
   .row > span:first-child { min-width: 100%; margin-bottom: -6px; }
 }
+
+/* ---------- Video mode ---------- */
+.tabs button[hidden] { display: none; }
+#appModeSeg button { padding: 6px 12px; }
+
+.transport { display: flex; align-items: center; gap: 10px; }
+.transport[hidden] { display: none; }
+.transport input[type=range] { flex: 1; accent-color: var(--accent); }
+.transport .play { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 16px; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.transport .time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; min-width: 78px; text-align: right; }
+
+.fxgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.fxgrid.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.fxgrid button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px;
+  background: var(--card); border: 2px solid transparent; border-radius: var(--radius); cursor: pointer; color: var(--text);
+}
+.fxgrid button .ic { font-size: 22px; line-height: 1.2; }
+.fxgrid button .nm { font-size: 13px; font-weight: 600; }
+.fxgrid button .sb { font-size: 11px; color: var(--muted); }
+.fxgrid button:hover { border-color: var(--line); }
+.fxgrid button.on { border-color: var(--accent); background: #2a3550; }
+
+.moods { display: flex; flex-wrap: wrap; gap: 8px; }
+.moods button { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.moods button:hover { border-color: var(--accent); }
+
+.progress { position: relative; height: 30px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin: 12px 0; }
+.progress[hidden] { display: none; }
+.progress div { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--wave), var(--accent)); transition: width .2s; }
+.progress span { position: relative; display: block; text-align: center; line-height: 28px; font-size: 13px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+
+.dlg[hidden] { display: none; }
+
+@media (max-width: 600px) {
+  .hide-sm { display: none; }
+  .brand { display: none; }
+  #appModeSeg button { padding: 6px 10px; }
+}

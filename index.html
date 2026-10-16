@@ -15,8 +15,12 @@
   <header class="topbar">
     <img src="icons/icon-192.png" alt="" class="brand-logo">
     <div class="brand"><b>සඳදිය</b> <span>Studio</span></div>
+    <div class="seg" id="appModeSeg">
+      <button data-appmode="photo">📸 ෆොටෝ</button>
+      <button data-appmode="video">🎬 Video</button>
+    </div>
     <div class="spacer"></div>
-    <button id="btnPhoto" class="btn ghost">🖼️ ෆොටෝ</button>
+    <button id="btnPhoto" class="btn ghost hide-sm">🖼️ ෆොටෝ එකක්</button>
     <button id="btnExport" class="btn primary">💾 Save</button>
   </header>
 
@@ -27,7 +31,7 @@
           <button data-mode="move" class="on">✋ ගෙනයන්න</button>
           <button data-mode="highlight">✨ Highlight</button>
         </div>
-        <div class="seg small" data-seg="aspect">
+        <div class="seg small" data-seg="aspect" id="aspectSeg">
           <button data-val="1:1">1:1</button>
           <button data-val="4:5">4:5</button>
           <button data-val="9:16">9:16</button>
@@ -37,17 +41,64 @@
       <div class="stage" id="stage">
         <canvas id="canvas"></canvas>
       </div>
+      <div class="transport" id="transport" hidden>
+        <button id="btnPlay" class="btn play" aria-label="Play">▶</button>
+        <input type="range" id="scrub" min="0" max="10" step="0.01" value="0" aria-label="Video එකේ වෙලාව">
+        <span id="timeLbl" class="time">0.0 / 10.0</span>
+      </div>
       <p class="hint" id="gestureHint"></p>
     </section>
 
     <aside class="panel">
       <nav class="tabs" id="tabs">
+        <button data-tab="video" hidden>🎬<span>Video</span></button>
         <button data-tab="text" class="on">📝<span>වදන</span></button>
         <button data-tab="style">🎨<span>ස්ටයිල්</span></button>
         <button data-tab="font">🔤<span>අකුරු</span></button>
         <button data-tab="photo">🖼️<span>ෆොටෝ</span></button>
         <button data-tab="brand">🌙<span>ලාංඡනය</span></button>
       </nav>
+
+      <!-- Video -->
+      <div class="pane" data-pane="video">
+        <h3>⚡ එක tap එකෙන් Mood එකක්</h3>
+        <div class="moods" id="moodGrid"></div>
+
+        <h3>✍️ වදන් එන විදිහ</h3>
+        <div class="fxgrid" data-seg="video.textFx" id="textFxGrid"></div>
+        <label class="row"><span>වේගය</span><input type="range" data-bind="video.speed" min="0.4" max="2.5" step="0.05"></label>
+        <label class="row"><span>පටන් ගන්න කලින් ඉන්න</span><input type="range" data-bind="video.delay" min="0" max="3" step="0.1"></label>
+
+        <h3>💫 Highlight වචන</h3>
+        <div class="seg wrap" data-seg="video.hlFx" id="hlFxSeg"></div>
+
+        <h3>🌸 Effects</h3>
+        <div class="fxgrid small" data-seg="video.particles" id="particleGrid"></div>
+        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="video.density" min="0.3" max="2.5" step="0.1"></label>
+        <div class="colors"><label><input type="color" data-bind="video.particleColor"><span>Effect පාට</span></label></div>
+
+        <h3>📐 Size</h3>
+        <div class="seg wrap" data-seg="video.aspect">
+          <button data-val="9:16">9:16 Reel</button><button data-val="4:5">4:5</button><button data-val="1:1">1:1</button><button data-val="16:9">16:9</button>
+        </div>
+
+        <h3>🎥 Background</h3>
+        <div class="seg wrap" data-seg="video.bg">
+          <button data-val="photo">🖼️ ෆොටෝ එක</button><button data-val="video">🎞️ Video clip එකක්</button>
+        </div>
+        <div class="toolbar">
+          <button id="btnBgVideo" class="btn">🎞️ Video clip එකක් තෝරන්න</button>
+          <button id="btnPhoto3" class="btn">🖼️ ෆොටෝ එකක් තෝරන්න</button>
+        </div>
+        <div class="row"><span>Camera චලනය</span><div class="seg wrap" data-seg="video.motion" id="motionSeg"></div></div>
+
+        <h3>⏱️ දිග</h3>
+        <label class="row check"><input type="checkbox" data-bind="video.autoLen"><span>වදන අනුව auto (<b id="autoLenOut">-</b>)</span></label>
+        <label class="row"><span>අන්තිමට නවතින කාලය</span><input type="range" data-bind="video.hold" min="1" max="12" step="0.5"></label>
+        <label class="row"><span>තමන්ම දිග දාන්න (<b id="durOut">-</b>)</span><input type="range" data-bind="video.duration" min="4" max="60" step="0.5"></label>
+        <label class="row check"><input type="checkbox" data-bind="video.fade"><span>මුලයි අගයි කළු පාටින් fade වෙන්න</span></label>
+        <p class="note">🎵 Music එක ඊළඟ update එකේ එනවා. දැනට video එකට සද්දයක් නෑ.</p>
+      </div>
 
       <!-- වදන -->
       <div class="pane on" data-pane="text">
@@ -198,7 +249,23 @@
   </main>
 
   <dialog id="exportDlg">
-    <form method="dialog" class="dlg">
+    <form method="dialog" class="dlg" id="exportVideo">
+      <h2>🎬 Video එක හදන්න</h2>
+      <div class="row"><span>Quality</span>
+        <div class="seg" data-seg="video.quality">
+          <button type="button" data-val="720">720p</button><button type="button" data-val="1080">1080p ⭐</button>
+        </div>
+      </div>
+      <p class="note" id="vidInfo"></p>
+      <div class="progress" id="vidProgress" hidden><div></div><span>0%</span></div>
+      <div class="toolbar end">
+        <button value="cancel" class="btn ghost" id="btnVidClose">වහන්න</button>
+        <button type="button" id="btnVidMake" class="btn primary">🎬 හදන්න</button>
+        <button type="button" id="btnVidDownload" class="btn" hidden>⬇️ Download</button>
+        <button type="button" id="btnVidShare" class="btn primary" hidden>📤 Share</button>
+      </div>
+    </form>
+    <form method="dialog" class="dlg" id="exportPhoto">
       <h2>💾 ෆොටෝ එක Save කරන්න</h2>
       <div class="row"><span>Quality</span>
         <div class="seg" data-seg="export.quality">
@@ -222,6 +289,7 @@
   <div id="toast" class="toast" role="status"></div>
   <input type="file" id="filePhoto" accept="image/*" hidden>
   <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
+  <input type="file" id="fileVideo" accept="video/*" hidden>
 
   <script type="module" src="js/main.js"></script>
 </body>

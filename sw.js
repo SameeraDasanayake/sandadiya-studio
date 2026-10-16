@@ -1,9 +1,10 @@
 // Offline වැඩ කරන්න app එකේ files cache කරනවා.
-// Cache එකෙන් ඉක්මනට දීලා, පස්සෙන් අලුත් version එක download කරගන්නවා (stale-while-revalidate).
-const CACHE = 'sandadiya-v1';
+// Internet තියෙනවා නම් අලුත්ම එක ගන්නවා (updates ඉක්මනට එන්න), නැත්නම් / හෙමින් නම් cache එකෙන්.
+const CACHE = 'sandadiya-v2';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/main.js', 'js/render.js', 'js/markup.js', 'js/state.js', 'js/idb.js',
+  'js/video.js', 'js/particles.js', 'js/vendor/mp4-muxer.mjs',
   'icons/icon-192.png', 'icons/icon-512.png',
   'fonts/AbhayaLibre-Regular.ttf', 'fonts/AbhayaLibre-Bold.ttf', 'fonts/AbhayaLibre-ExtraBold.ttf',
   'fonts/NotoSansSinhala.ttf', 'fonts/NotoSerifSinhala.ttf', 'fonts/GemunuLibre.ttf', 'fonts/Yaldevi.ttf',
@@ -23,13 +24,15 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
-  e.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const hit = await cache.match(e.request, { ignoreSearch: true });
-      const fresh = fetch(e.request)
-        .then((res) => { if (res.ok) cache.put(e.request, res.clone()); return res; })
-        .catch(() => hit);
-      return hit || fresh;
-    }),
-  );
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    try {
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+      const res = await Promise.race([fetch(e.request, { cache: 'no-cache' }), timeout]);
+      if (res.ok) cache.put(e.request, res.clone());
+      return res;
+    } catch {
+      return (await cache.match(e.request, { ignoreSearch: true })) || Response.error();
+    }
+  })());
 });
