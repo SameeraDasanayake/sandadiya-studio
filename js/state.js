@@ -98,12 +98,18 @@ export const PRESETS = [
 export const DEFAULT_STATE = {
   version: 1,
   mode: 'photo', // 'photo' | 'video'
+  stickers: [], // ෆොටෝ එකේ stickers (video එකට වෙනම video.stickers)
+  // ෆොටෝ එකටත් effects (video එකේ particles වලින් එක frame එකක්)
+  photoFx: { type: 'none', density: 1, color: '#ffb3c6', emoji: '💕', seed: 4 },
   aspect: '1:1',
   export: { quality: '2k', format: 'jpg' },
   video: {
     aspect: '9:16',
     // 9:16 video එකට text එකේ තැන ෆොටෝ එකේ තැනට වඩා වෙනස් නිසා වෙනම
     textBox: { x: 0.5, y: 0.46, maxWidth: 0.84, align: 'center', size: 0.052, lineHeight: 1.55 },
+    stickers: [],
+    loopFx: 'none',
+    particleEmoji: '💕',
     bg: 'photo', // 'photo' | 'video'
     motion: 'zoomin',
     textFx: 'typeword',

@@ -17,6 +17,12 @@ export const TEXT_FX = [
   { id: 'blurin', name: 'සිහිනයක් වගේ', sub: 'Blur → පැහැදිලි', icon: '💭', unit: 'line', rate: 0.75, dur: 1.2 },
   { id: 'pop', name: 'Pop', sub: 'පනින වචන', icon: '💥', unit: 'word', rate: 3, dur: 0.45 },
   { id: 'whole', name: 'එකපාර', sub: 'මුළු වදනම fade', icon: '🌅', unit: 'all', rate: 1, dur: 1.6 },
+  { id: 'typecursor', name: 'Typewriter', sub: 'Cursor එක්ක', icon: '▌', unit: 'char', rate: 14, dur: 0 },
+  { id: 'drop', name: 'වැටෙන වචන', sub: 'උඩින් පනිනවා', icon: '🪂', unit: 'word', rate: 3, dur: 0.7 },
+  { id: 'scatter', name: 'විසිරිලා එකතු', sub: 'හැම පැත්තෙන්ම', icon: '🌪️', unit: 'word', rate: 4, dur: 1 },
+  { id: 'zoom', name: 'ලොකුවෙන් පොඩියට', sub: 'Zoom in', icon: '🔎', unit: 'word', rate: 3, dur: 0.6 },
+  { id: 'flip', name: 'පෙරළෙන පේළි', sub: 'Flip', icon: '🔄', unit: 'line', rate: 0.9, dur: 0.8 },
+  { id: 'wipe', name: 'පින්සලෙන් අඳිනවා', sub: 'Wipe', icon: '🖌️', unit: 'line', rate: 0.8, dur: 1.1 },
   { id: 'none', name: 'Animation නෑ', sub: 'නිකන්ම', icon: '⏸️', unit: 'all', rate: 1, dur: 0 },
 ];
 const FX = Object.fromEntries(TEXT_FX.map((f) => [f.id, f]));
@@ -29,10 +35,19 @@ export const MOTIONS = [
   { id: 'panright', name: '➡️ දකුණට' },
 ];
 
+// වදන ඔක්කොම ආවට පස්සෙත් දිගටම වෙන චලනය
+export const LOOP_FX = [
+  { id: 'none', name: 'නෑ' },
+  { id: 'float', name: '☁️ පාවෙනවා' },
+  { id: 'wave', name: '🌊 රළ වගේ' },
+  { id: 'breathe', name: '🫧 හුස්ම ගන්නවා' },
+];
+
 export const HL_FX = [
   { id: 'none', name: 'නෑ' },
   { id: 'glow', name: '✨ දිලිසෙනවා' },
   { id: 'beat', name: '💓 හද ගැස්ම' },
+  { id: 'rainbow', name: '🌈 පාට මාරු' },
 ];
 
 // එක tap එකෙන් video ස්ටයිල් එකක්
@@ -49,9 +64,18 @@ const clamp01 = (p) => (p < 0 ? 0 : p > 1 ? 1 : p);
 const smooth = (p) => { p = clamp01(p); return p * p * (3 - 2 * p); };
 const easeOut = (p) => 1 - Math.pow(1 - clamp01(p), 3);
 const easeOutBack = (p) => { p = clamp01(p); const c = 1.9; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const easeOutBounce = (p) => {
+  p = clamp01(p);
+  const n = 7.5625, d = 2.75;
+  if (p < 1 / d) return n * p * p;
+  if (p < 2 / d) return n * (p -= 1.5 / d) * p + 0.75;
+  if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
+  return n * (p -= 2.625 / d) * p + 0.984375;
+};
+const rnd = (i, k) => { const x = Math.sin(i * 91.7 + k * 47.3) * 43758.5453; return x - Math.floor(x); };
 
 // Video එකට ඕනේ state එක: aspect එක video එකේම එකෙන්
-export const videoState = (st) => ({ ...st, aspect: st.video.aspect, textBox: st.video.textBox });
+export const videoState = (st) => ({ ...st, aspect: st.video.aspect, textBox: st.video.textBox, stickers: st.video.stickers });
 
 // ---------- Text schedule ----------
 
@@ -93,7 +117,7 @@ function makeAnim(lay, st, t) {
   const fx = FX[v.textFx] || FX.typeword;
   const sch = buildSchedule(lay, fx, v);
   const base = lay.base;
-  const out = { a: 1, dy: 0, s: 1, blur: 0, chars: undefined };
+  const out = { a: 1, dx: 0, dy: 0, s: 1, sy: 1, rot: 0, blur: 0, clip: 1, chars: undefined };
 
   let hlGlow = 0, hlScale = 1;
   if (v.hlFx === 'glow') hlGlow = 0.35 + 0.3 * Math.sin(t * 2.6);
@@ -103,13 +127,31 @@ function makeAnim(lay, st, t) {
     hlScale = 1 + 0.07 * b;
     hlGlow = 0.45 * b;
   }
+  const hlHue = v.hlFx === 'rainbow' ? (t * 70) % 360 : null;
+
+  // Cursor එක: දැන් type වෙන (නැත්නම් අන්තිමට type වුණ) වචනේ අගට
+  let cursor = null;
+  if (fx.id === 'typecursor') {
+    let gi = -1;
+    for (let k = 0; k < sch.starts.length; k++) if (sch.chars[k] != null && sch.starts[k] <= t && (gi < 0 || sch.starts[k] >= sch.starts[gi])) gi = k;
+    const typing = t < sch.end;
+    if (gi >= 0) cursor = { gi, on: typing || Math.floor(t * 2.2) % 2 === 0 };
+  }
+
+  const loop = v.loopFx || 'none';
+  const applyLoop = (gi) => {
+    if (loop === 'float') out.dy += Math.sin(t * 1.3) * base * 0.22;
+    else if (loop === 'wave') out.dy += Math.sin(t * 2.6 - gi * 0.5) * base * 0.13;
+    else if (loop === 'breathe') out.s *= 1 + 0.03 * Math.sin(t * 1.8);
+  };
 
   return {
-    hlGlow, hlScale,
+    hlGlow, hlScale, hlHue, cursor,
     unit(gi) {
-      if (fx.id === 'none') return null;
+      out.a = 1; out.dx = 0; out.dy = 0; out.s = 1; out.sy = 1; out.rot = 0; out.blur = 0; out.clip = 1; out.chars = undefined;
+      applyLoop(gi);
+      if (fx.id === 'none') return out;
       const start = sch.starts[gi];
-      out.a = 1; out.dy = 0; out.s = 1; out.blur = 0; out.chars = undefined;
       if (fx.unit === 'char') {
         if (t < start) { out.a = 0; return out; }
         if (sch.chars[gi] != null) {
@@ -129,6 +171,19 @@ function makeAnim(lay, st, t) {
         case 'blurin': out.a = smooth(p * 1.2); out.blur = (1 - easeOut(p)) * base * 0.45; break;
         case 'pop': out.a = clamp01(p * 3); out.s = 0.35 + 0.65 * easeOutBack(p); break;
         case 'whole': out.a = smooth(p); out.s = 1.05 - 0.05 * easeOut(p); break;
+        case 'drop': out.a = clamp01(p * 4); out.dy -= (1 - easeOutBounce(p)) * base * 2.2; break;
+        case 'scatter': {
+          const e = easeOut(p);
+          out.a = smooth(p * 1.5);
+          out.dx = (rnd(gi, 1) - 0.5) * base * 9 * (1 - e);
+          out.dy += (rnd(gi, 2) - 0.5) * base * 7 * (1 - e);
+          out.rot = (rnd(gi, 3) - 0.5) * 1.6 * (1 - e);
+          out.s *= 0.6 + 0.4 * e;
+          break;
+        }
+        case 'zoom': out.a = smooth(p); out.s *= 2.4 - 1.4 * easeOut(p); out.blur = (1 - p) * base * 0.15; break;
+        case 'flip': out.a = smooth(p * 2); out.sy = Math.max(0.02, easeOutBack(p)); break;
+        case 'wipe': out.clip = smooth(p); break;
         default: break;
       }
       return out;
@@ -202,8 +257,10 @@ export function renderVideoFrame(ctx, st, assets, o) {
   const fst = withMotion(st, o.t, o.D);
   return renderScene(ctx, fst, { ...assets, photo: o.bg, photoId: 'video' }, {
     W: o.W, H: o.H, editor: o.editor, cache: false,
-    afterBackground: v.particles !== 'none' ? (c, W, H) => drawParticles(c, v.particles, o.t, W, H, v.density, v.particleColor) : null,
+    afterBackground: v.particles !== 'none' ? (c, W, H) => drawParticles(c, v.particles, o.t, W, H, v.density, v.particleColor, v.particleEmoji) : null,
     makeAnim: (lay) => makeAnim(lay, fst, o.t),
+    t: o.t,
+    selectedSticker: o.selectedSticker,
     // Edit කරද්දි (pause) කළු වෙන්න දෙන්නේ නෑ, එතකොට වදන පේනවා
     fade: v.fade && !o.editor ? fadeAt(o.t, o.D) : 0,
   });

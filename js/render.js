@@ -3,6 +3,7 @@
 // (Video mode එකටත් මේකම තමයි පාවිච්චි කරන්නේ.)
 
 import { parse, DIVIDER_RE } from './markup.js';
+import { drawStickers } from './stickers.js';
 
 export const FONTS = [
   { family: 'Abhaya Libre', label: 'අභය (Abhaya Libre)' },
@@ -10,6 +11,15 @@ export const FONTS = [
   { family: 'Noto Serif Sinhala', label: 'නොටෝ සෙරිෆ් (Noto Serif)' },
   { family: 'Gemunu Libre', label: 'ගැමුණු (Gemunu Libre)' },
   { family: 'Yaldevi', label: 'යාල්දේවි (Yaldevi)' },
+  { family: 'Maname', label: 'මානමේ (Maname)' },
+  { family: 'Hind Colombo', label: 'හින්ද් කොළඹ (Hind Colombo)' },
+  { family: 'Kaputa', label: 'කපුටා (Kaputa)' },
+  { family: 'Atlas Chirani', label: '✍️ චිරානි අත් අකුරු (Atlas Chirani)' },
+  { family: 'Stick No Bills', label: '🧱 Stencil (Stick No Bills)' },
+  // ඉංග්‍රීසි script fonts: සිංහල අකුරු ආවොත් Noto Sans Sinhala එකෙන් පෙන්නනවා
+  { family: 'Great Vibes', label: '✒️ Great Vibes (English)' },
+  { family: 'Dancing Script', label: '✒️ Dancing Script (English)' },
+  { family: 'Pacifico', label: '✒️ Pacifico (English)' },
 ];
 
 export const ASPECTS = {
@@ -336,53 +346,77 @@ function drawRun(ctx, st, r, text, x, y, U, boost = 0) {
   ctx.shadowBlur = 0;
 }
 
-// Animation state එකක් (alpha, dy, scale, blur) වචනයකට හරි ඉරකට හරි දානවා
-function applyFx(ctx, a, dy, s, blur, cx, cy) {
-  ctx.globalAlpha *= a;
-  if (dy) ctx.translate(0, dy);
-  if (s !== 1) {
+// Animation state එකක් (alpha, ගමන, scale, කරකැවීම, blur) වචනයකට හරි ඉරකට හරි දානවා
+function applyFx(ctx, s, scale, cx, cy) {
+  ctx.globalAlpha *= s.a;
+  if (s.dx || s.dy) ctx.translate(s.dx || 0, s.dy || 0);
+  const sy = s.sy ?? 1;
+  if (scale !== 1 || sy !== 1 || s.rot) {
     ctx.translate(cx, cy);
-    ctx.scale(s, s);
+    if (s.rot) ctx.rotate(s.rot);
+    ctx.scale(scale, scale * sy);
     ctx.translate(-cx, -cy);
   }
-  if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+  if (s.blur > 0.3) ctx.filter = `blur(${s.blur.toFixed(1)}px)`;
 }
 
-// anim (optional, video එකට): { unit(gi) → {a, dy, s, blur, chars} | null, hlGlow, hlScale }
+// Wipe animation එක: පේළියේ වම් පැත්තේ ඉඳන් ටික ටික පේන්න
+function clipLine(ctx, l, clip, pad) {
+  if (clip >= 1) return;
+  ctx.beginPath();
+  ctx.rect(l.x - pad, l.top - pad, (l.w + 2 * pad) * clip, l.h + 2 * pad);
+  ctx.clip();
+}
+
+const NO_FX = { a: 1, dx: 0, dy: 0, s: 1, sy: 1, rot: 0, blur: 0, clip: 1 };
+
+// anim (optional, video එකට): { unit(gi) → state, hlGlow, hlScale, hlHue, cursor: {gi, on} }
 export function drawText(ctx, st, lay, W, H, anim = null) {
   const U = Math.min(W, H);
+  const pad = lay.base * 0.6;
   ctx.save();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   for (const l of lay.lines) {
     if (l.type === 'divider') {
-      const s = anim?.unit(l.gi);
-      if (s && s.a <= 0.001) continue;
+      const s = anim?.unit(l.gi) || NO_FX;
+      if (s.a <= 0.001) continue;
       ctx.save();
-      if (s) applyFx(ctx, s.a, s.dy, s.s, s.blur, l.x + l.w / 2, l.cy);
+      clipLine(ctx, l, s.clip ?? 1, pad);
+      applyFx(ctx, s, s.s, l.x + l.w / 2, l.cy);
       drawDivider(ctx, st.divider.style, l.x + l.w / 2, l.cy, l.w, lay.base, st.divider.color);
       ctx.restore();
     } else if (l.type === 'text') {
       const baseline = l.cy + (l.asc - l.desc) / 2;
       for (const w of l.words) {
-        const s = anim?.unit(w.gi);
-        if (s && s.a <= 0.001) continue;
+        const s = anim?.unit(w.gi) || NO_FX;
+        if (s.a <= 0.001) continue;
         const hasHl = anim && w.runs.some((r) => r.hl);
-        const scale = (s ? s.s : 1) * (hasHl ? anim.hlScale : 1);
         ctx.save();
-        applyFx(ctx, s ? s.a : 1, s ? s.dy : 0, scale, s ? s.blur : 0, w.x + w.w / 2, l.cy);
-        let x = w.x;
-        let left = s?.chars ?? Infinity;
+        clipLine(ctx, l, s.clip ?? 1, pad);
+        applyFx(ctx, s, s.s * (hasHl ? anim.hlScale : 1), w.x + w.w / 2, l.cy);
+        let x = w.x, xEnd = w.x;
+        let left = s.chars ?? Infinity;
         for (const r of w.runs) {
           if (left <= 0) break;
-          let text = r.text;
+          let text = r.text, partial = false;
           if (left !== Infinity) {
             const gs = graphemes(r.text);
-            if (gs.length > left) text = gs.slice(0, left).join('');
+            if (gs.length > left) { text = gs.slice(0, left).join(''); partial = true; }
             left -= gs.length;
           }
-          drawRun(ctx, st, r, text, x, baseline, U, r.hl && anim ? anim.hlGlow : 0);
+          const run = r.hl && anim?.hlHue != null ? { ...r, color: `hsl(${(anim.hlHue + w.gi * 25) % 360}, 90%, 72%)` } : r;
+          drawRun(ctx, st, run, text, x, baseline, U, r.hl && anim ? anim.hlGlow : 0);
+          if (partial) { ctx.font = r.font; xEnd = x + ctx.measureText(text).width; } else xEnd = x + r.w;
           x += r.w;
+        }
+        // Typewriter cursor එක
+        if (anim?.cursor && anim.cursor.gi === w.gi && anim.cursor.on) {
+          const h = lay.base * 1.05;
+          ctx.fillStyle = st.colors.text;
+          ctx.shadowColor = st.colors.text;
+          ctx.shadowBlur = lay.base * 0.3;
+          ctx.fillRect(xEnd + lay.base * 0.08, l.cy - h / 2, Math.max(2, lay.base * 0.07), h);
         }
         ctx.restore();
       }
@@ -445,7 +479,8 @@ function drawWatermark(ctx, st, assets, W, H) {
 // opts: { W, H, editor, cache,
 //         afterBackground(ctx, W, H) — video particles,
 //         makeAnim(layout) — video text animation,
-//         fade — 0..1 කළු වෙන ප්‍රමාණය (video එකේ පටන් ගැනීම/අවසානය) }
+//         fade — 0..1 කළු වෙන ප්‍රමාණය (video එකේ පටන් ගැනීම/අවසානය),
+//         t — video එකේ වෙලාව (stickers animate වෙන්න), selectedSticker — edit කරන sticker එකේ id }
 export function renderScene(ctx, st, assets, opts) {
   const { W, H } = opts;
   ctx.save();
@@ -455,6 +490,7 @@ export function renderScene(ctx, st, assets, opts) {
   drawBorder(ctx, st, W, H);
   const lay = layoutText(ctx, st, W, H);
   drawText(ctx, st, lay, W, H, opts.makeAnim ? opts.makeAnim(lay) : null);
+  lay.stickers = drawStickers(ctx, st.stickers, W, H, opts.t ?? null, opts.editor ? opts.selectedSticker : null);
   drawWatermark(ctx, st, assets, W, H);
   if (opts.fade > 0) {
     ctx.fillStyle = `rgba(0,0,0,${Math.min(1, opts.fade)})`;

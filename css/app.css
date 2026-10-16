@@ -5,6 +5,16 @@
 @font-face { font-family: 'Noto Serif Sinhala'; src: url(../fonts/NotoSerifSinhala.ttf); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: 'Gemunu Libre'; src: url(../fonts/GemunuLibre.ttf); font-weight: 200 800; font-display: swap; }
 @font-face { font-family: 'Yaldevi'; src: url(../fonts/Yaldevi.ttf); font-weight: 200 700; font-display: swap; }
+@font-face { font-family: 'Maname'; src: url(../fonts/Maname.ttf); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: 'Stick No Bills'; src: url(../fonts/StickNoBills.ttf); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: 'Atlas Chirani'; src: url(../fonts/AtlasChirani.ttf); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: 'Kaputa'; src: url(../fonts/Kaputa.ttf); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: 'Hind Colombo'; src: url(../fonts/HindColombo-Regular.otf); font-weight: 300 500; font-display: swap; }
+@font-face { font-family: 'Hind Colombo'; src: url(../fonts/HindColombo-SemiBold.otf); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Hind Colombo'; src: url(../fonts/HindColombo-Bold.otf); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: 'Great Vibes'; src: url(../fonts/GreatVibes.ttf); font-weight: 400 800; font-display: swap; }
+@font-face { font-family: 'Dancing Script'; src: url(../fonts/DancingScript.ttf); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: 'Pacifico'; src: url(../fonts/Pacifico.ttf); font-weight: 400 800; font-display: swap; }
 
 /* ============================================================
    සඳදිය Studio: Glass / Futuristic theme
@@ -468,3 +478,54 @@ dialog::backdrop { background: rgba(3, 6, 14, 0.6); -webkit-backdrop-filter: blu
   #musicName { text-align: center; }
   .dlg h2 { text-align: center; }
 }
+
+/* ---------- Stickers & Emoji ---------- */
+.emojigrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; margin: 10px 0; }
+.emojigrid.small { grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
+.emojigrid button {
+  aspect-ratio: 1; display: grid; place-items: center; font-size: 24px; cursor: pointer; padding: 0;
+  border-radius: 12px; border: 1px solid transparent; background: var(--glass-soft);
+  font-family: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
+  transition: transform .12s, border-color .2s, background .2s;
+}
+.emojigrid.small button { font-size: 20px; }
+.emojigrid button:hover { transform: scale(1.12); border-color: var(--stroke-hi); background: rgba(255,255,255,.08); }
+.emojigrid button:active { transform: scale(.92); }
+.emojigrid button.on { border-color: rgba(243,212,155,.6); box-shadow: var(--glow-gold); }
+
+.stickergrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.stickergrid button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 7px; cursor: pointer;
+  border-radius: var(--r); border: 1px solid var(--stroke); background: var(--glass-soft); color: var(--muted); font-size: 11px;
+  transition: transform .15s, border-color .2s, box-shadow .2s;
+}
+.stickergrid button canvas { width: 54px; height: 54px; }
+.stickergrid button:hover { transform: translateY(-2px); border-color: rgba(243,212,155,.45); box-shadow: var(--glow-gold); color: var(--ink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button {
+  border: 1px solid var(--stroke); background: var(--glass-soft); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 17px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.chips button:hover { border-color: rgba(243,212,155,.5); box-shadow: var(--glow-gold); }
+
+.sticker-edit {
+  margin-bottom: 8px; padding: 12px 14px 4px; border-radius: var(--r-lg);
+  background: linear-gradient(160deg, rgba(243,212,155,.10), rgba(124,196,216,.05));
+  border: 1px solid rgba(243,212,155,.35); box-shadow: 0 0 30px rgba(243,212,155,.08);
+}
+.sticker-edit[hidden], #stickerTextRow[hidden], #particleEmojiRow[hidden], #photoEmojiRow[hidden], .emoji-pal[hidden] { display: none; }
+.btn.danger { border-color: rgba(229,72,77,.45); color: #ffb4b6; }
+.btn.danger:hover { background: rgba(229,72,77,.15); }
+
+.emoji-pal { padding: 10px; border-radius: var(--r); background: var(--glass-soft); border: 1px solid var(--stroke); margin-bottom: 10px; }
+
+@media (max-width: 600px) {
+  /* Tabs 8ක් තියෙද්දි bar එක පැත්තට scroll වෙනවා */
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: 1 0 50px; }
+  .chips, .stickergrid { justify-content: center; }
+  .emojigrid { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); }
+}
+#photoFxBox[hidden] { display: none; }

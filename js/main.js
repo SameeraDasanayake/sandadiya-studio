@@ -6,10 +6,13 @@ import {
 } from './state.js';
 import * as idb from './idb.js';
 import {
-  TEXT_FX, MOTIONS, HL_FX, MOODS, videoState, timeline, typingTimes, renderVideoFrame, exportVideo, canEncode,
+  TEXT_FX, MOTIONS, HL_FX, LOOP_FX, MOODS, videoState, timeline, typingTimes, renderVideoFrame, exportVideo, canEncode,
 } from './video.js';
-import { PARTICLES } from './particles.js';
+import { PARTICLES, PARTICLE_EMOJI, drawParticles } from './particles.js';
 import { SOUNDS, decodeAudio, renderMix, playMix, stopMix, drawWave } from './audio.js';
+import {
+  EMOJI_SETS, VEC_STICKERS, TEXT_PRESETS, STICKER_ANIMS, drawStickerShape, handlePoints, handleSize, hitSticker,
+} from './stickers.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -105,11 +108,11 @@ function draw() {
     scheduleMix(tl.D);
     const t = player.t == null ? Math.min(tl.revealEnd + 0.2, tl.D) : Math.min(player.t, tl.D);
     if (player.t != null) player.t = t;
-    layout = renderVideoFrame(ctx, state, assets, { W, H, t, D: tl.D, bg, editor: !player.playing });
+    layout = renderVideoFrame(ctx, state, assets, { W, H, t, D: tl.D, bg, editor: !player.playing, selectedSticker: selId });
     updateTransport(tl);
     if (player.playing) scheduleRender();
   } else {
-    layout = renderScene(ctx, state, assets, { W, H, editor: true, cache: true });
+    layout = renderScene(ctx, state, assets, { W, H, editor: true, cache: true, selectedSticker: selId, afterBackground: photoFxHook() });
     scheduleThumbs();
   }
 }
@@ -260,6 +263,11 @@ function changed(path) {
     state.video.particleColor = PARTICLES.find((p) => p.id === state.video.particles)?.color || '#ffffff';
     syncInputs();
   }
+  if (path === 'photoFx.type') {
+    state.photoFx.color = PARTICLES.find((p) => p.id === state.photoFx.type)?.color || '#ffffff';
+    syncInputs();
+  }
+  if (path === 'video.particles' || path === 'photoFx.type') updateEmojiRows();
   if (path === 'video.duration') {
     state.video.autoLen = false;
     syncInputs();
@@ -268,7 +276,7 @@ function changed(path) {
   if (path === 'audio.src' && state.audio.src === 'file' && !assets.music) $('#fileMusic').click();
   if (path.startsWith('audio.')) updateMusicUI();
   // Effect එකක් හරි සද්දයක් හරි තේරුවම මුල ඉඳන් play කරලා පෙන්නනවා
-  if (['video.textFx', 'video.particles', 'video.motion', 'video.hlFx', 'audio.src', 'audio.typing', 'audio.clipAudio'].includes(path)) playFrom(0);
+  if (['video.textFx', 'video.particles', 'video.motion', 'video.hlFx', 'video.loopFx', 'audio.src', 'audio.typing', 'audio.clipAudio'].includes(path)) playFrom(0);
   scheduleRender();
   saveSoon();
 }
@@ -451,17 +459,52 @@ function onText(p) {
   return p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad;
 }
 
+// Stickers: උඩින්ම තියෙන එකෙන් පටන් අරන් බලනවා. තෝරපු එකේ ✕ / ↻ handles මුලින්ම.
+function stickerAt(p) {
+  const boxes = layout?.stickers;
+  if (!boxes?.length) return null;
+  const U = Math.min(canvas.width, canvas.height);
+  const sel = boxes.find((b) => b.id === selId);
+  if (sel) {
+    const hp = handlePoints(sel, U), r = handleSize(U) * 1.5;
+    if (Math.hypot(p.x - hp.del.x, p.y - hp.del.y) <= r) return { part: 'del', id: sel.id };
+    if (Math.hypot(p.x - hp.rot.x, p.y - hp.rot.y) <= r) return { part: 'rot', id: sel.id, box: sel };
+  }
+  for (let k = boxes.length - 1; k >= 0; k--) if (hitSticker(boxes[k], p.x, p.y, U)) return { part: 'body', id: boxes[k].id };
+  return null;
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
   const p = canvasPoint(e);
   pointers.set(e.pointerId, p);
   if (pointers.size === 1) {
+    const hit = stickerAt(p);
+    if (hit?.part === 'del') {
+      deleteSticker(hit.id);
+      g = { kind: 'none' };
+      return;
+    }
+    if (hit?.part === 'rot') {
+      const s = curSticker();
+      const { cx, cy } = hit.box;
+      g = { kind: 'stRot', cx, cy, a0: Math.atan2(p.y - cy, p.x - cx), d0: Math.hypot(p.x - cx, p.y - cy) || 1, size0: s.size, rot0: s.rot };
+      return;
+    }
+    if (hit) {
+      selectSticker(hit.id);
+      g = { kind: 'sticker', start: p, last: p, moved: false };
+      return;
+    }
+    if (selId) selectSticker(null);
     g = { kind: onText(p) || !bgMedia() ? 'text' : 'photo', start: p, last: p, moved: false };
   } else if (pointers.size === 2 && g) {
     const [a, b] = [...pointers.values()];
+    const s = curSticker();
     g = {
-      kind: 'pinch', target: g.kind === 'photo' ? 'photo' : 'text',
-      d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, size0: tb().size, zoom0: state.photo.zoom,
+      kind: 'pinch', target: g.kind === 'sticker' && s ? 'sticker' : g.kind === 'photo' ? 'photo' : 'text',
+      d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x),
+      size0: tb().size, zoom0: state.photo.zoom, ssize0: s?.size, srot0: s?.rot,
     };
   }
 });
@@ -475,8 +518,17 @@ canvas.addEventListener('pointermove', (e) => {
     if (pointers.size < 2) return;
     const [a, b] = [...pointers.values()];
     const k = Math.hypot(a.x - b.x, a.y - b.y) / g.d0;
-    if (g.target === 'text') tb().size = clamp(g.size0 * k, 0.015, 0.14);
+    if (g.target === 'sticker' && curSticker()) {
+      const s = curSticker();
+      s.size = clamp(g.ssize0 * k, 0.02, 1.2);
+      s.rot = g.srot0 + (Math.atan2(b.y - a.y, b.x - a.x) - g.a0);
+    } else if (g.target === 'text') tb().size = clamp(g.size0 * k, 0.015, 0.14);
     else state.photo.zoom = clamp(g.zoom0 * k, 1, 6);
+  } else if (g.kind === 'stRot') {
+    const s = curSticker();
+    if (!s) return;
+    s.rot = g.rot0 + (Math.atan2(p.y - g.cy, p.x - g.cx) - g.a0);
+    s.size = clamp(g.size0 * (Math.hypot(p.x - g.cx, p.y - g.cy) / g.d0), 0.02, 1.2);
   } else {
     if (!g.moved) {
       const thr = (8 * W) / canvas.clientWidth;
@@ -485,7 +537,10 @@ canvas.addEventListener('pointermove', (e) => {
     }
     const dx = p.x - g.last.x, dy = p.y - g.last.y;
     g.last = p;
-    if (g.kind === 'text') {
+    if (g.kind === 'sticker') {
+      const s = curSticker();
+      if (s) { s.x = clamp(s.x + dx / W, -0.1, 1.1); s.y = clamp(s.y + dy / H, -0.1, 1.1); }
+    } else if (g.kind === 'text') {
       tb().x = clamp(tb().x + dx / W, 0, 1);
       tb().y = clamp(tb().y + dy / H, 0, 1);
     } else if (bgMedia()) {
@@ -511,6 +566,7 @@ function endPointer(e) {
     }
   }
   if (pointers.size === 0) {
+    if (g?.kind === 'sticker' || g?.kind === 'stRot' || g?.target === 'sticker') updateStickerPanel();
     g = null;
     syncInputs();
     saveSoon();
@@ -525,12 +581,215 @@ canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const p = canvasPoint(e);
   const k = Math.exp(-e.deltaY * 0.0015);
-  if (onText(p) || !bgMedia()) tb().size = clamp(tb().size * k, 0.015, 0.14);
+  const hit = stickerAt(p);
+  if (hit && hit.part !== 'del') {
+    selectSticker(hit.id);
+    const s = curSticker();
+    if (e.shiftKey) s.rot += e.deltaY * 0.003; // Shift + wheel = කරකවන්න
+    else s.size = clamp(s.size * k, 0.02, 1.2);
+    updateStickerPanel();
+  } else if (onText(p) || !bgMedia()) tb().size = clamp(tb().size * k, 0.015, 0.14);
   else state.photo.zoom = clamp(state.photo.zoom * k, 1, 6);
   scheduleRender();
   syncSoon();
   saveSoon();
 }, { passive: false });
+
+// ---------- Stickers ----------
+
+let selId = null;
+const stickers = () => (isVideo() ? state.video.stickers : state.stickers);
+const curSticker = () => stickers().find((s) => s.id === selId) || null;
+
+function selectSticker(id) {
+  selId = id;
+  updateStickerPanel();
+  scheduleRender();
+}
+
+function addSticker(kind, value, extra = {}) {
+  const list = stickers();
+  const n = list.length;
+  const s = {
+    kind, value,
+    x: 0.5 + ((n % 5) - 2) * 0.06, y: 0.3 + (n % 4) * 0.06,
+    size: kind === 'text' ? 0.24 : 0.16, rot: 0, opacity: 1,
+    color: '#ffffff', font: 'Great Vibes', anim: isVideo() ? 'float' : 'none',
+    ...extra,
+    id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+  };
+  list.push(s);
+  if (s.kind === 'text') loadFontFamily(s.font);
+  selectSticker(s.id);
+  saveSoon();
+  toast('✅ දැම්මා! ඇදලා තැනට දාන්න');
+}
+
+function deleteSticker(id) {
+  const list = stickers();
+  const i = list.findIndex((s) => s.id === id);
+  if (i >= 0) list.splice(i, 1);
+  if (selId === id) selId = null;
+  updateStickerPanel();
+  scheduleRender();
+  saveSoon();
+}
+
+function updateStickerPanel() {
+  const s = curSticker();
+  $('#stickerEdit').hidden = !s;
+  if (!s) return;
+  $('#stSize').value = String(s.size);
+  $('#stRot').value = String(Math.round((((s.rot * 180) / Math.PI + 540) % 360) - 180));
+  $('#stOpacity').value = String(s.opacity ?? 1);
+  $('#stColorRow').hidden = s.kind === 'emoji';
+  $('#stColor').value = s.color || '#ffffff';
+  $('#stickerTextRow').hidden = s.kind !== 'text';
+  if (s.kind === 'text') {
+    if (document.activeElement !== $('#stText')) $('#stText').value = s.value;
+    $('#stFont').value = s.font;
+  }
+  $('#stAnimRow').hidden = !isVideo();
+  for (const b of $$('#stAnim button')) b.classList.toggle('on', b.dataset.val === (s.anim || 'none'));
+  for (const id of ['#stSize', '#stRot', '#stOpacity']) paintRange($(id));
+}
+
+function updateEmojiRows() {
+  $('#particleEmojiRow').hidden = state.video.particles !== 'emoji';
+  $('#photoEmojiRow').hidden = state.photoFx.type !== 'emoji';
+}
+
+function stickerPreview(kind, value, color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 108;
+  const x = c.getContext('2d');
+  x.translate(54, 54);
+  drawStickerShape(x, { kind, value, color }, 92);
+  return c;
+}
+
+function buildStickerUI() {
+  // Text stickers: ඒ ඒ font එකෙන්ම පෙන්නනවා
+  $('#textStickerGrid').innerHTML = TEXT_PRESETS.map((t, i) => `<button data-i="${i}" style="font-family:'${t.font}', 'Noto Sans Sinhala'">${esc(t.value)}</button>`).join('');
+  $('#textStickerGrid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-i]');
+    if (!b) return;
+    const t = TEXT_PRESETS[+b.dataset.i];
+    addSticker('text', t.value, { font: t.font, color: t.color });
+  });
+  $('#btnAddTextSticker').addEventListener('click', () => {
+    const v = $('#newTextSticker').value.trim();
+    if (!v) return toast('මුලින් වචනයක් ටයිප් කරන්න');
+    addSticker('text', v, { font: 'Atlas Chirani' });
+    $('#newTextSticker').value = '';
+  });
+
+  const vg = $('#vecGrid');
+  for (const v of VEC_STICKERS) {
+    const b = document.createElement('button');
+    b.title = v.name;
+    b.append(stickerPreview('vec', v.id, v.color));
+    b.insertAdjacentHTML('beforeend', `<span>${esc(v.name)}</span>`);
+    b.addEventListener('click', () => addSticker('vec', v.id, { color: v.color, size: 0.2 }));
+    vg.append(b);
+  }
+
+  // Emoji: categories
+  const fillEmoji = (catsEl, gridEl, onPick) => {
+    catsEl.innerHTML = EMOJI_SETS.map((c, i) => `<button data-i="${i}" class="${i ? '' : 'on'}">${esc(c.name)}</button>`).join('');
+    const show = (i) => {
+      gridEl.innerHTML = EMOJI_SETS[i].list.map((em) => `<button data-e="${em}">${em}</button>`).join('');
+      for (const b of $$('button', catsEl)) b.classList.toggle('on', b.dataset.i === String(i));
+    };
+    catsEl.addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) show(+b.dataset.i); });
+    // Textarea එකේ cursor එක නැති නොවෙන්න
+    gridEl.addEventListener('pointerdown', (e) => { if (e.target.closest('[data-e]')) e.preventDefault(); });
+    gridEl.addEventListener('click', (e) => { const b = e.target.closest('[data-e]'); if (b) onPick(b.dataset.e); });
+    show(0);
+  };
+  fillEmoji($('#emojiCats'), $('#emojiGrid'), (em) => addSticker('emoji', em, { size: 0.13 }));
+  fillEmoji($('#palCats'), $('#palGrid'), (em) => {
+    const pos = ta.selectionStart ?? ta.value.length;
+    setText(ta.value.slice(0, pos) + em + ta.value.slice(ta.selectionEnd ?? pos), pos + em.length);
+  });
+  $('#btnEmojiPal').addEventListener('click', () => { $('#emojiPalette').hidden = !$('#emojiPalette').hidden; });
+
+  // තෝරපු sticker එකේ controls
+  $('#stAnim').innerHTML = STICKER_ANIMS.map((a) => `<button data-val="${a.id}">${esc(a.name)}</button>`).join('');
+  const edit = (fn) => { const s = curSticker(); if (!s) return; fn(s); scheduleRender(); saveSoon(); };
+  $('#stSize').addEventListener('input', (e) => edit((s) => { s.size = parseFloat(e.target.value); }));
+  $('#stRot').addEventListener('input', (e) => edit((s) => { s.rot = (parseFloat(e.target.value) * Math.PI) / 180; }));
+  $('#stOpacity').addEventListener('input', (e) => edit((s) => { s.opacity = parseFloat(e.target.value); }));
+  $('#stColor').addEventListener('input', (e) => edit((s) => { s.color = e.target.value; }));
+  $('#stText').addEventListener('input', (e) => edit((s) => { s.value = e.target.value || ' '; }));
+  $('#stFont').addEventListener('input', (e) => edit((s) => { s.font = e.target.value; loadFontFamily(s.font); }));
+  $('#stAnim').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-val]');
+    if (!b) return;
+    edit((s) => { s.anim = b.dataset.val; });
+    updateStickerPanel();
+    if (isVideo()) playFrom(0);
+  });
+  $('#stDup').addEventListener('click', () => { const s = curSticker(); if (s) addSticker(s.kind, s.value, { ...s, x: s.x + 0.05, y: s.y + 0.05 }); });
+  $('#stFront').addEventListener('click', () => edit((s) => { const l = stickers(); l.splice(l.indexOf(s), 1); l.push(s); }));
+  $('#stDel').addEventListener('click', () => { if (selId) deleteSticker(selId); });
+  $('#stDone').addEventListener('click', () => selectSticker(null));
+
+  // "ඔක්කොම අයින් කරන්න" එක වැරදිලාවත් ඔබපු එකකට නොවෙන්න දෙපාරක් ඔබන්න ඕනේ
+  let clearArm = 0;
+  const clearBtn = $('#btnClearStickers');
+  const clearLabel = clearBtn.textContent;
+  clearBtn.addEventListener('click', () => {
+    if (!stickers().length) return toast('Stickers මොකුත් නෑ');
+    if (Date.now() - clearArm > 3000) {
+      clearArm = Date.now();
+      clearBtn.textContent = '⚠️ ඇත්තටම? ආයේ ඔබන්න';
+      setTimeout(() => { clearBtn.textContent = clearLabel; }, 3000);
+      return;
+    }
+    stickers().length = 0;
+    selectSticker(null);
+    saveSoon();
+    clearBtn.textContent = clearLabel;
+    toast('🧹 Stickers ඔක්කොම අයින් කළා');
+  });
+
+  // Effects: ෆොටෝ effects grid + emoji වැස්සේ emoji
+  $('#photoFxGrid').innerHTML = PARTICLES.map((p) => fxButton(p.id, p.icon, p.name)).join('');
+  const emojiPick = (el, get, set) => {
+    el.innerHTML = PARTICLE_EMOJI.map((em) => `<button data-e="${em}">${em}</button>`).join('');
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-e]');
+      if (!b) return;
+      set(b.dataset.e);
+      for (const x of $$('button', el)) x.classList.toggle('on', x === b);
+      scheduleRender();
+      saveSoon();
+    });
+    for (const x of $$('button', el)) x.classList.toggle('on', x.dataset.e === get());
+  };
+  emojiPick($('#particleEmojiGrid'), () => state.video.particleEmoji, (v) => { state.video.particleEmoji = v; });
+  emojiPick($('#photoEmojiGrid'), () => state.photoFx.emoji, (v) => { state.photoFx.emoji = v; });
+  updateEmojiRows();
+
+  // PC එකේ Delete key එකෙන් තෝරපු sticker එක මකන්න
+  document.addEventListener('keydown', (e) => {
+    if (!selId || e.target.closest('input, textarea, select')) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSticker(selId); }
+    if (e.key === 'Escape') selectSticker(null);
+  });
+}
+
+function loadFontFamily(fam) {
+  document.fonts.load(`700 40px "${fam}"`, 'අa').then(scheduleRender).catch(() => {});
+}
+
+// ෆොටෝ එකේ effects: video එකේ particles වලින් එක "freeze" frame එකක්
+function photoFxHook() {
+  const f = state.photoFx;
+  if (f.type === 'none') return null;
+  return (c, W, H) => drawParticles(c, f.type, 3 + f.seed * 1.37, W, H, f.density, f.color, f.emoji);
+}
 
 // ---------- ෆොටෝ / Video mode ----------
 
@@ -548,6 +807,9 @@ function setAppMode(m) {
   $('[data-tab=video]').hidden = !vid;
   $('[data-tab=music]').hidden = !vid;
   $('#transport').hidden = !vid;
+  $('#photoFxBox').hidden = vid; // video එකට effects තියෙන්නේ Video tab එකේ
+  selId = null;
+  updateStickerPanel();
   $('#aspectSeg').dataset.seg = vid ? 'video.aspect' : 'aspect';
   // අකුරු tab එකේ ප්‍රමාණය/තැන controls දැන් mode එකේ text box එකට bind කරනවා
   for (const el of $$('[data-bind*="textBox."]')) el.dataset.bind = (vid ? 'video.' : '') + el.dataset.bind.replace(/^video\./, '');
@@ -570,6 +832,7 @@ function buildVideoUI() {
   $('#textFxGrid').innerHTML = TEXT_FX.map((f) => fxButton(f.id, f.icon, f.name, f.sub)).join('');
   $('#particleGrid').innerHTML = PARTICLES.map((p) => fxButton(p.id, p.icon, p.name)).join('');
   $('#hlFxSeg').innerHTML = HL_FX.map((h) => `<button data-val="${h.id}">${esc(h.name)}</button>`).join('');
+  $('#loopFxSeg').innerHTML = LOOP_FX.map((h) => `<button data-val="${h.id}">${esc(h.name)}</button>`).join('');
   $('#motionSeg').innerHTML = MOTIONS.map((m) => `<button data-val="${m.id}">${esc(m.name)}</button>`).join('');
   $('#soundGrid').innerHTML = SOUNDS.map((s) => fxButton(s.id, s.icon, s.name)).join('');
   $('#moodGrid').innerHTML = MOODS.map((m) => `<button data-mood="${m.id}">${esc(m.name)}</button>`).join('');
@@ -787,7 +1050,7 @@ async function makeFile() {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
-  renderScene(c.getContext('2d'), state, assets, { W, H, editor: false });
+  renderScene(c.getContext('2d'), state, assets, { W, H, editor: false, afterBackground: photoFxHook() });
   const png = state.export.format === 'png';
   const blob = await new Promise((r) => c.toBlob(r, png ? 'image/png' : 'image/jpeg', 0.95));
   return new File([blob], `sandadiya-${stamp()}.${png ? 'png' : 'jpg'}`, { type: blob.type });
@@ -965,6 +1228,7 @@ function wire() {
 
 async function init() {
   buildVideoUI();
+  buildStickerUI();
   wire();
   fillFontSelects();
   ta.value = state.text;

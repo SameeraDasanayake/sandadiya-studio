@@ -55,6 +55,7 @@
         <button data-tab="video" hidden>🎬<span>Video</span></button>
         <button data-tab="music" hidden>🎵<span>Music</span></button>
         <button data-tab="text" class="on">📝<span>වදන</span></button>
+        <button data-tab="stickers">😍<span>Stickers</span></button>
         <button data-tab="style">🎨<span>ස්ටයිල්</span></button>
         <button data-tab="font">🔤<span>අකුරු</span></button>
         <button data-tab="photo">🖼️<span>ෆොටෝ</span></button>
@@ -74,8 +75,12 @@
         <h3>💫 Highlight වචන</h3>
         <div class="seg wrap" data-seg="video.hlFx" id="hlFxSeg"></div>
 
+        <h3>🔁 වදන ආවට පස්සේ</h3>
+        <div class="seg wrap" data-seg="video.loopFx" id="loopFxSeg"></div>
+
         <h3>🌸 Effects</h3>
         <div class="fxgrid small" data-seg="video.particles" id="particleGrid"></div>
+        <div id="particleEmojiRow" hidden><div class="emojigrid small" id="particleEmojiGrid"></div></div>
         <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="video.density" min="0.3" max="2.5" step="0.1"></label>
         <div class="colors"><label><input type="color" data-bind="video.particleColor"><span>Effect පාට</span></label></div>
 
@@ -140,6 +145,11 @@
           <button id="btnDivider" class="btn">➖ අලංකාර ඉර</button>
           <button id="btnSaveQuote" class="btn">📥 Save වදන</button>
           <button id="btnQuotes" class="btn">📚 වදන් පොත</button>
+          <button id="btnEmojiPal" class="btn">😊 Emoji</button>
+        </div>
+        <div id="emojiPalette" class="emoji-pal" hidden>
+          <div class="seg wrap small" id="palCats"></div>
+          <div class="emojigrid" id="palGrid"></div>
         </div>
         <div id="quoteList" class="quotes" hidden></div>
         <details class="help">
@@ -151,6 +161,45 @@
             <li>ෆොටෝ එකේ text එක ඇදලා තැන වෙනස් කරන්න. ඇඟිලි දෙකෙන් (PC එකේ නම් mouse wheel එකෙන්) ලොකු කරන්න.</li>
           </ul>
         </details>
+      </div>
+
+      <!-- Stickers -->
+      <div class="pane" data-pane="stickers">
+        <div id="stickerEdit" class="sticker-edit" hidden>
+          <h3>✏️ තෝරපු Sticker එක</h3>
+          <div id="stickerTextRow" hidden>
+            <label class="row"><span>වචන</span><input type="text" id="stText"></label>
+            <label class="row"><span>Font</span><select id="stFont" class="fontSelect"></select></label>
+          </div>
+          <label class="row"><span>ප්‍රමාණය</span><input type="range" id="stSize" min="0.03" max="0.9" step="0.005"></label>
+          <label class="row"><span>කරකවන්න</span><input type="range" id="stRot" min="-180" max="180" step="1"></label>
+          <label class="row"><span>පෙනෙන ප්‍රමාණය</span><input type="range" id="stOpacity" min="0.1" max="1" step="0.05"></label>
+          <div class="colors" id="stColorRow"><label><input type="color" id="stColor"><span>පාට</span></label></div>
+          <div id="stAnimRow"><div class="row"><span>Animation</span><div class="seg wrap" id="stAnim"></div></div></div>
+          <div class="toolbar">
+            <button id="stDup" class="btn">⧉ තව එකක්</button>
+            <button id="stFront" class="btn">⬆ ඉස්සරහට</button>
+            <button id="stDel" class="btn danger">🗑 මකන්න</button>
+            <button id="stDone" class="btn primary">✔ හරි</button>
+          </div>
+        </div>
+
+        <h3>✍️ Text Stickers</h3>
+        <div class="chips" id="textStickerGrid"></div>
+        <div class="inline">
+          <input type="text" id="newTextSticker" placeholder="ඔයාගේම වචනයක් (නමක්, දිනයක්...)">
+          <button id="btnAddTextSticker" class="btn primary">➕ දාන්න</button>
+        </div>
+
+        <h3>🎨 Stickers</h3>
+        <div class="stickergrid" id="vecGrid"></div>
+
+        <h3>😍 Emoji</h3>
+        <div class="seg wrap small" id="emojiCats"></div>
+        <div class="emojigrid" id="emojiGrid"></div>
+
+        <div class="toolbar"><button id="btnClearStickers" class="btn">🧹 ඔක්කොම Stickers අයින් කරන්න</button></div>
+        <p class="note">💡 Sticker එකක් tap කරලා තෝරන්න. ඇදලා තැන මාරු කරන්න. <b>↻</b> එකෙන් ලොකු කරන්නත් කරකවන්නත් පුළුවන්. <b>✕</b> එකෙන් මකන්න. ඇඟිලි දෙකෙනුත් ලොකු කරලා කරකවන්න පුළුවන්.</p>
       </div>
 
       <!-- ස්ටයිල් -->
@@ -235,6 +284,15 @@
         </div>
         <label class="row"><span>Zoom</span><input type="range" data-bind="photo.zoom" min="1" max="4" step="0.01"></label>
         <div class="toolbar"><button id="btnResetPhoto" class="btn">↺ ෆොටෝ එක ආපහු මැදට</button></div>
+        <div id="photoFxBox">
+        <h3>✨ Effects</h3>
+        <div class="fxgrid small" data-seg="photoFx.type" id="photoFxGrid"></div>
+        <div id="photoEmojiRow" hidden><div class="emojigrid small" id="photoEmojiGrid"></div></div>
+        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="photoFx.density" min="0.3" max="2.5" step="0.1"></label>
+        <label class="row"><span>රටාව මාරු කරන්න</span><input type="range" data-bind="photoFx.seed" min="0" max="40" step="1"></label>
+        <div class="colors"><label><input type="color" data-bind="photoFx.color"><span>Effect පාට</span></label></div>
+        </div>
+
         <h3>පෙනුම</h3>
         <label class="row"><span>එළිය</span><input type="range" data-bind="adjust.brightness" min="40" max="150" step="1"></label>
         <label class="row"><span>පාට ගැඹුර</span><input type="range" data-bind="adjust.saturate" min="0" max="200" step="1"></label>
