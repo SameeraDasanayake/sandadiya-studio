@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="si">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>සඳදිය Studio</title>
+  <meta name="description" content="ෆොටෝස් උඩ ආදර, විරහ වදන් ලස්සනට ලියන්න">
+  <meta name="theme-color" content="#0f1724">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <img src="icons/icon-192.png" alt="" class="brand-logo">
+    <div class="brand"><b>සඳදිය</b> <span>Studio</span></div>
+    <div class="spacer"></div>
+    <button id="btnPhoto" class="btn ghost">🖼️ ෆොටෝ</button>
+    <button id="btnExport" class="btn primary">💾 Save</button>
+  </header>
+
+  <main class="layout">
+    <section class="stage-wrap">
+      <div class="modebar">
+        <div class="seg" id="modeSeg">
+          <button data-mode="move" class="on">✋ ගෙනයන්න</button>
+          <button data-mode="highlight">✨ Highlight</button>
+        </div>
+        <div class="seg small" data-seg="aspect">
+          <button data-val="1:1">1:1</button>
+          <button data-val="4:5">4:5</button>
+          <button data-val="9:16">9:16</button>
+          <button data-val="16:9">16:9</button>
+        </div>
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="canvas"></canvas>
+      </div>
+      <p class="hint" id="gestureHint"></p>
+    </section>
+
+    <aside class="panel">
+      <nav class="tabs" id="tabs">
+        <button data-tab="text" class="on">📝<span>වදන</span></button>
+        <button data-tab="style">🎨<span>ස්ටයිල්</span></button>
+        <button data-tab="font">🔤<span>අකුරු</span></button>
+        <button data-tab="photo">🖼️<span>ෆොටෝ</span></button>
+        <button data-tab="brand">🌙<span>ලාංඡනය</span></button>
+      </nav>
+
+      <!-- වදන -->
+      <div class="pane on" data-pane="text">
+        <textarea id="text" data-bind="text" rows="9" spellcheck="false" placeholder="මෙතන වදන ටයිප් කරන්න..."></textarea>
+        <div class="toolbar">
+          <button id="btnHl" class="btn">✨ Highlight</button>
+          <button id="btnDivider" class="btn">➖ අලංකාර ඉර</button>
+          <button id="btnSaveQuote" class="btn">📥 Save වදන</button>
+          <button id="btnQuotes" class="btn">📚 වදන් පොත</button>
+        </div>
+        <div id="quoteList" class="quotes" hidden></div>
+        <details class="help">
+          <summary>💡 ලේසියෙන් කරන විදිහ</summary>
+          <ul>
+            <li><b>පළමු පේළිය</b> මාතෘකාව විදිහට ලොකුවට එනවා. (<i>අකුරු</i> tab එකෙන් off කරන්න පුළුවන්.)</li>
+            <li>වචනයක් select කරලා <b>✨ Highlight</b> එබුවම ඒක වෙනම පාටකින් එනවා. නැත්නම් උඩ <b>✨ Highlight</b> mode එක දාලා ෆොටෝ එකේ වචනේ tap කරන්න.</li>
+            <li><code>---</code> කියලා පේළියක් ගැහුවම එතනට ලස්සන ඉරක් එනවා.</li>
+            <li>ෆොටෝ එකේ text එක ඇදලා තැන වෙනස් කරන්න. ඇඟිලි දෙකෙන් (PC එකේ නම් mouse wheel එකෙන්) ලොකු කරන්න.</li>
+          </ul>
+        </details>
+      </div>
+
+      <!-- ස්ටයිල් -->
+      <div class="pane" data-pane="style">
+        <p class="note">එක tap එකකින් මුළු ස්ටයිල් එකම මාරු වෙනවා. ඔයාගේ ෆොටෝ එකෙන්ම preview එක පෙන්නනවා.</p>
+        <div class="presets" id="presetGrid"></div>
+        <h3>⭐ මගේ ස්ටයිල්</h3>
+        <div class="presets" id="myPresetGrid"></div>
+        <div class="inline">
+          <input id="myPresetName" type="text" placeholder="ස්ටයිල් එකේ නම (උදා: මගේ රෝස)">
+          <button id="btnSaveStyle" class="btn">💾 Save</button>
+        </div>
+      </div>
+
+      <!-- අකුරු -->
+      <div class="pane" data-pane="font">
+        <h3>ප්‍රමාණය සහ තැන</h3>
+        <label class="row"><span>අකුරු ප්‍රමාණය</span><input type="range" data-bind="textBox.size" min="0.02" max="0.11" step="0.001"></label>
+        <label class="row"><span>පේළි අතර ඉඩ</span><input type="range" data-bind="textBox.lineHeight" min="1.1" max="2.4" step="0.05"></label>
+        <label class="row"><span>පේළියක දිග</span><input type="range" data-bind="textBox.maxWidth" min="0.3" max="0.95" step="0.01"></label>
+        <div class="row"><span>පෙළගැස්ම</span>
+          <div class="seg" data-seg="textBox.align">
+            <button data-val="left">⬅️ වම</button><button data-val="center">⏺️ මැද</button><button data-val="right">➡️ දකුණ</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button id="btnCenter" class="btn">🎯 Text එක මැදට</button>
+          <button id="btnLeftArea" class="btn">◧ වම් පැත්තට</button>
+        </div>
+
+        <h3>Font</h3>
+        <label class="row"><span>වදන් font එක</span><select data-bind="font.body" class="fontSelect"></select></label>
+        <label class="row"><span>ඝනකම</span><select data-bind="font.bodyWeight" data-type="number">
+          <option value="400">සාමාන්‍ය</option><option value="500">මධ්‍යම</option><option value="600">තරමක් තද</option><option value="700">තද</option><option value="800">ගොඩක් තද</option>
+        </select></label>
+        <label class="row check"><input type="checkbox" data-bind="font.titleOn"><span>පළමු පේළිය මාතෘකාවක් විදිහට</span></label>
+        <label class="row"><span>මාතෘකා font එක</span><select data-bind="font.title" class="fontSelect"></select></label>
+        <label class="row"><span>මාතෘකා ඝනකම</span><select data-bind="font.titleWeight" data-type="number">
+          <option value="400">සාමාන්‍ය</option><option value="600">තරමක් තද</option><option value="700">තද</option><option value="800">ගොඩක් තද</option>
+        </select></label>
+        <label class="row"><span>මාතෘකා ප්‍රමාණය</span><input type="range" data-bind="font.titleScale" min="1" max="2.2" step="0.05"></label>
+        <div class="toolbar">
+          <button id="btnAddFont" class="btn">➕ ඔයාගේ font එකක් (TTF/OTF)</button>
+        </div>
+
+        <h3>පාට</h3>
+        <div class="colors">
+          <label><input type="color" data-bind="colors.text"><span>වදන්</span></label>
+          <label><input type="color" data-bind="colors.title"><span>මාතෘකාව</span></label>
+          <label><input type="color" data-bind="colors.highlight"><span>Highlight</span></label>
+          <label><input type="color" data-bind="divider.color"><span>ඉර</span></label>
+        </div>
+        <label class="row"><span>Highlight ප්‍රමාණය</span><input type="range" data-bind="colors.hlScale" min="1" max="1.6" step="0.02"></label>
+
+        <h3>අලංකාර ඉර (---)</h3>
+        <div class="seg wrap" data-seg="divider.style">
+          <button data-val="heart">•—♡—•</button><button data-val="dots">··♥··</button><button data-val="leaf">🌿</button><button data-val="star">—✦—</button><button data-val="line">•——•</button>
+        </div>
+
+        <h3>Effects</h3>
+        <div class="colors">
+          <label><input type="color" data-bind="effects.shadowColor"><span>සෙවනැල්ල</span></label>
+          <label><input type="color" data-bind="effects.glowColor"><span>දීප්තිය</span></label>
+          <label><input type="color" data-bind="effects.strokeColor"><span>Outline</span></label>
+        </div>
+        <label class="row"><span>සෙවනැල්ල</span><input type="range" data-bind="effects.shadowOpacity" min="0" max="1" step="0.05"></label>
+        <label class="row"><span>සෙවනැල්ලේ මෘදු බව</span><input type="range" data-bind="effects.shadowBlur" min="0" max="2" step="0.05"></label>
+        <label class="row"><span>දීප්තිය (glow)</span><input type="range" data-bind="effects.glow" min="0" max="1.5" step="0.05"></label>
+        <label class="row"><span>Outline</span><input type="range" data-bind="effects.strokeWidth" min="0" max="1" step="0.05"></label>
+      </div>
+
+      <!-- ෆොටෝ -->
+      <div class="pane" data-pane="photo">
+        <div class="toolbar">
+          <button id="btnPhoto2" class="btn primary">🖼️ ෆොටෝ එකක් තෝරන්න</button>
+          <button id="btnRemovePhoto" class="btn">✖ ෆොටෝ එක අයින් කරන්න</button>
+        </div>
+        <div class="row"><span>ප්‍රමාණය</span>
+          <div class="seg wrap" data-seg="aspect">
+            <button data-val="1:1">1:1 Post</button><button data-val="4:5">4:5</button><button data-val="9:16">9:16 Story</button><button data-val="16:9">16:9</button><button data-val="photo">ෆොටෝ එකේ size</button>
+          </div>
+        </div>
+        <label class="row"><span>Zoom</span><input type="range" data-bind="photo.zoom" min="1" max="4" step="0.01"></label>
+        <div class="toolbar"><button id="btnResetPhoto" class="btn">↺ ෆොටෝ එක ආපහු මැදට</button></div>
+        <h3>පෙනුම</h3>
+        <label class="row"><span>එළිය</span><input type="range" data-bind="adjust.brightness" min="40" max="150" step="1"></label>
+        <label class="row"><span>පාට ගැඹුර</span><input type="range" data-bind="adjust.saturate" min="0" max="200" step="1"></label>
+        <label class="row"><span>Blur</span><input type="range" data-bind="adjust.blur" min="0" max="20" step="0.5"></label>
+        <label class="row"><span>Vignette (කොන් අඳුරු)</span><input type="range" data-bind="adjust.vignette" min="0" max="1" step="0.05"></label>
+        <h3>පාට තට්ටුව (අකුරු පැහැදිලි වෙන්න)</h3>
+        <div class="colors">
+          <label><input type="color" data-bind="adjust.overlayColor"><span>පාට</span></label>
+        </div>
+        <label class="row"><span>තද බව</span><input type="range" data-bind="adjust.overlayOpacity" min="0" max="0.85" step="0.01"></label>
+        <h3>ෆොටෝ නැති වෙලාවට background එක</h3>
+        <div class="colors">
+          <label><input type="color" data-bind="bg.0"><span>උඩ</span></label>
+          <label><input type="color" data-bind="bg.1"><span>යට</span></label>
+        </div>
+      </div>
+
+      <!-- ලාංඡනය -->
+      <div class="pane" data-pane="brand">
+        <h3>Watermark</h3>
+        <div class="seg wrap" data-seg="watermark.mode">
+          <button data-val="text">නම</button><button data-val="logo">Logo</button><button data-val="both">දෙකම</button><button data-val="none">නෑ</button>
+        </div>
+        <label class="row"><span>නම</span><input type="text" data-bind="watermark.text"></label>
+        <div class="row"><span>තැන</span>
+          <div class="seg wrap" data-seg="watermark.pos">
+            <button data-val="tl">↖</button><button data-val="tc">⬆</button><button data-val="tr">↗</button>
+            <button data-val="bl">↙</button><button data-val="bc">⬇</button><button data-val="br">↘</button>
+          </div>
+        </div>
+        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="watermark.size" min="0.018" max="0.07" step="0.001"></label>
+        <label class="row"><span>පෙනෙන ප්‍රමාණය</span><input type="range" data-bind="watermark.opacity" min="0.2" max="1" step="0.05"></label>
+        <label class="row"><span>සෙවනැල්ල</span><input type="range" data-bind="watermark.shadow" min="0" max="1" step="0.05"></label>
+        <div class="colors"><label><input type="color" data-bind="watermark.color"><span>පාට</span></label></div>
+
+        <h3>රාමුව (Border)</h3>
+        <label class="row check"><input type="checkbox" data-bind="border.on"><span>සිහින් රාමුවක් දාන්න</span></label>
+        <div class="colors"><label><input type="color" data-bind="border.color"><span>පාට</span></label></div>
+        <label class="row"><span>පෙනෙන ප්‍රමාණය</span><input type="range" data-bind="border.opacity" min="0.1" max="1" step="0.05"></label>
+        <label class="row"><span>දාරයේ සිට දුර</span><input type="range" data-bind="border.inset" min="0" max="0.08" step="0.002"></label>
+        <label class="row"><span>ඝනකම</span><input type="range" data-bind="border.width" min="0.001" max="0.01" step="0.0005"></label>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="exportDlg">
+    <form method="dialog" class="dlg">
+      <h2>💾 ෆොටෝ එක Save කරන්න</h2>
+      <div class="row"><span>Quality</span>
+        <div class="seg" data-seg="export.quality">
+          <button type="button" data-val="hd">HD (1080)</button><button type="button" data-val="2k">2K (2048) ⭐</button>
+        </div>
+      </div>
+      <div class="row"><span>Format</span>
+        <div class="seg" data-seg="export.format">
+          <button type="button" data-val="jpg">JPG</button><button type="button" data-val="png">PNG</button>
+        </div>
+      </div>
+      <p class="note">Facebook එකට 2K JPG එක තමයි හොඳම.</p>
+      <div class="toolbar end">
+        <button value="cancel" class="btn ghost">වහන්න</button>
+        <button type="button" id="btnDownload" class="btn">⬇️ Download</button>
+        <button type="button" id="btnShare" class="btn primary">📤 Share</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <input type="file" id="filePhoto" accept="image/*" hidden>
+  <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2" hidden>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

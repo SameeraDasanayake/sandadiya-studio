@@ -1,0 +1,197 @@
+@font-face { font-family: 'Abhaya Libre'; src: url(../fonts/AbhayaLibre-Regular.ttf); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: 'Abhaya Libre'; src: url(../fonts/AbhayaLibre-Bold.ttf); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Abhaya Libre'; src: url(../fonts/AbhayaLibre-ExtraBold.ttf); font-weight: 800 900; font-display: swap; }
+@font-face { font-family: 'Noto Sans Sinhala'; src: url(../fonts/NotoSansSinhala.ttf); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Noto Serif Sinhala'; src: url(../fonts/NotoSerifSinhala.ttf); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Gemunu Libre'; src: url(../fonts/GemunuLibre.ttf); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: 'Yaldevi'; src: url(../fonts/Yaldevi.ttf); font-weight: 200 700; font-display: swap; }
+
+:root {
+  --bg: #0d1522;
+  --panel: #142033;
+  --card: #1b2a42;
+  --line: #273a58;
+  --text: #e9eef6;
+  --muted: #95a6bf;
+  --accent: #f0cf95;
+  --accent-ink: #2a1d07;
+  --wave: #7fb6c9;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 'Noto Sans Sinhala', 'Segoe UI', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.brand-logo { width: 36px; height: 36px; border-radius: 50%; }
+.brand { font-size: 18px; letter-spacing: .2px; }
+.brand b { color: var(--accent); }
+.brand span { color: var(--muted); font-size: 14px; }
+.spacer { flex: 1; }
+
+.btn {
+  border: 1px solid var(--line); background: var(--card);
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  white-space: nowrap; transition: background .15s, transform .1s;
+}
+.btn:hover { background: #22344f; }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { background: #f6dcaa; }
+.btn.ghost { background: transparent; }
+
+/* ---------- Layout ---------- */
+.layout { display: flex; flex-direction: column; }
+.stage-wrap { display: flex; flex-direction: column; padding: 10px 12px 4px; gap: 8px; }
+.stage {
+  height: min(56vh, 100vw); min-height: 260px;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(127,182,201,.08), transparent 60%),
+    repeating-conic-gradient(#121c2c 0 25%, #0f1826 0 50%) 0 0 / 22px 22px;
+  border-radius: var(--radius); overflow: hidden;
+}
+#canvas {
+  display: block; touch-action: none; cursor: grab;
+  box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 4px;
+}
+#canvas.hl-mode { cursor: pointer; }
+.hint { margin: 0; color: var(--muted); font-size: 12.5px; text-align: center; min-height: 1.5em; }
+
+.modebar { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+.seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg.wrap { flex-wrap: wrap; border-radius: 14px; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+.seg.small button { padding: 5px 9px; font-size: 13px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* ---------- Panel ---------- */
+.panel { background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; position: sticky; top: 52px; background: var(--panel); z-index: 3; border-bottom: 1px solid var(--line); }
+.tabs button {
+  flex: 1; border: 0; background: transparent; padding: 8px 2px 6px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 18px;
+  color: var(--muted); border-bottom: 2px solid transparent;
+}
+.tabs button span { font-size: 12px; }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+
+.pane { display: none; padding: 14px 14px 40px; }
+.pane.on { display: block; }
+.pane h3 { font-size: 14px; color: var(--accent); margin: 18px 0 8px; font-weight: 600; }
+.pane h3:first-child { margin-top: 0; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+
+textarea {
+  width: 100%; resize: vertical; min-height: 180px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; font-size: 17px; line-height: 1.7;
+  font-family: 'Noto Sans Sinhala', sans-serif;
+}
+textarea:focus, input[type=text]:focus, select:focus { outline: 2px solid var(--wave); outline-offset: 1px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.toolbar.end { justify-content: flex-end; }
+
+.row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+.row > span:first-child { min-width: 128px; color: var(--muted); font-size: 13.5px; }
+.row input[type=range] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+.row select, .row input[type=text], .inline input {
+  flex: 1; min-width: 150px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 10px;
+}
+.row.check { gap: 10px; }
+.row.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row.check span { color: var(--text) !important; min-width: 0 !important; }
+
+.colors { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0; }
+.colors label { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.colors input[type=color] {
+  width: 46px; height: 46px; padding: 0; border: 2px solid var(--line); border-radius: 50%;
+  background: none; cursor: pointer; overflow: hidden;
+}
+.colors input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.colors input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+
+.inline { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Presets */
+.presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.preset {
+  position: relative; border: 2px solid transparent; border-radius: var(--radius); padding: 0; cursor: pointer;
+  background: var(--card); overflow: hidden; text-align: center;
+}
+.preset canvas { display: block; width: 100%; height: auto; }
+.preset .pname { display: block; padding: 5px 4px 6px; font-size: 12.5px; }
+.preset:hover { border-color: var(--wave); }
+.preset .del {
+  position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%;
+  border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; font-size: 13px;
+}
+.empty { color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+
+/* Quotes */
+.quotes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.quote { display: flex; gap: 8px; align-items: center; background: var(--card); border-radius: 10px; padding: 8px 10px; }
+.quote .qt { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.quote button { border: 0; background: transparent; cursor: pointer; font-size: 16px; padding: 4px; }
+
+.help { margin-top: 12px; background: var(--card); border-radius: var(--radius); padding: 10px 14px; font-size: 13.5px; color: var(--muted); }
+.help summary { cursor: pointer; color: var(--text); }
+.help li { margin: 6px 0; }
+.help code { background: var(--bg); padding: 1px 6px; border-radius: 6px; color: var(--accent); }
+
+/* Dialog */
+dialog { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); padding: 0; width: min(440px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgba(5,10,20,.65); }
+.dlg { padding: 18px 20px; }
+.dlg h2 { margin: 0 0 8px; font-size: 18px; }
+.dlg .row > span:first-child { min-width: 70px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 30px);
+  background: #f3f6fb; color: #111; padding: 10px 18px; border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: all .25s; z-index: 50;
+  max-width: calc(100vw - 32px); text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Preview එක හැමවෙලේම පේන්න: page එක scroll වෙන්නේ නෑ, panel එක විතරයි scroll වෙන්නේ */
+body { overflow: hidden; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.layout { flex: 1; min-height: 0; }
+.stage-wrap { flex: 0 0 auto; }
+.stage { height: 44vh; height: 44dvh; min-height: 220px; }
+.panel { flex: 1; min-height: 0; overflow-y: auto; }
+.tabs { top: 0; }
+
+/* ---------- Tablet / PC ---------- */
+@media (min-width: 900px) {
+  .layout { flex-direction: row; }
+  .stage-wrap { flex: 1; min-width: 0; padding: 14px 18px; }
+  .stage { flex: 1; height: auto; }
+  .panel { flex: 0 0 400px; border-top: 0; border-left: 1px solid var(--line); }
+}
+@media (max-width: 600px) {
+  .modebar .seg.small, .hint { display: none; }
+  .modebar .seg { flex: 1; }
+  .modebar .seg button { flex: 1; }
+}
+@media (max-width: 420px) {
+  .brand span { display: none; }
+  .row > span:first-child { min-width: 100%; margin-bottom: -6px; }
+}
