@@ -15,4 +15,4 @@ Android Chrome එකෙන් site එක open කරලා **⋮ → Add to Ho
 
 MP4 හදන්නේ [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (MIT) එකෙන්.
 
-Fonts: Abhaya Libre, Gemunu Libre, Yaldevi, Maname, Stick No Bills, Atlas Chirani (Mooniak), Hind Colombo (Indian Type Foundry), Noto Sans/Serif Sinhala, Great Vibes, Dancing Script, Pacifico. ඔක්කොම SIL Open Font License යටතේ. Kaputa font එක GPL-3.0 (license files  එකේ තියෙනවා).
+Fonts: Abhaya Libre, Gemunu Libre, Yaldevi, Maname, Stick No Bills, Atlas Chirani (Mooniak), Hind Colombo (Indian Type Foundry), Noto Sans/Serif Sinhala, Great Vibes, Dancing Script, Pacifico. ඔක්කොම SIL Open Font License යටතේ. Kaputa font එක GPL-3.0 (license files `fonts/` ෆෝල්ඩරේ තියෙනවා).
