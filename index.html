@@ -81,7 +81,7 @@
         <h3>🌸 Effects</h3>
         <div class="fxgrid small" data-seg="video.particles" id="particleGrid"></div>
         <div id="particleEmojiRow" hidden><div class="emojigrid small" id="particleEmojiGrid"></div></div>
-        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="video.density" min="0.3" max="2.5" step="0.1"></label>
+        <label class="row"><span>Effects ගාණ (අඩු ↔ වැඩි)</span><input type="range" data-bind="video.density" min="0.3" max="2.5" step="0.1"></label>
         <div class="colors"><label><input type="color" data-bind="video.particleColor"><span>Effect පාට</span></label></div>
 
         <h3>📐 Size</h3>
@@ -171,7 +171,7 @@
             <label class="row"><span>වචන</span><input type="text" id="stText"></label>
             <label class="row"><span>Font</span><select id="stFont" class="fontSelect"></select></label>
           </div>
-          <label class="row"><span>ප්‍රමාණය</span><input type="range" id="stSize" min="0.03" max="0.9" step="0.005"></label>
+          <label class="row"><span>Sticker එකේ ප්‍රමාණය</span><input type="range" id="stSize" min="0.03" max="0.9" step="0.005"></label>
           <label class="row"><span>කරකවන්න</span><input type="range" id="stRot" min="-180" max="180" step="1"></label>
           <label class="row"><span>පෙනෙන ප්‍රමාණය</span><input type="range" id="stOpacity" min="0.1" max="1" step="0.05"></label>
           <div class="colors" id="stColorRow"><label><input type="color" id="stColor"><span>පාට</span></label></div>
@@ -277,8 +277,8 @@
           <button id="btnPhoto2" class="btn primary">🖼️ ෆොටෝ එකක් තෝරන්න</button>
           <button id="btnRemovePhoto" class="btn">✖ ෆොටෝ එක අයින් කරන්න</button>
         </div>
-        <div class="row"><span>ප්‍රමාණය</span>
-          <div class="seg wrap" data-seg="aspect">
+        <div class="row"><span>📐 Post එකේ හැඩය</span>
+          <div class="seg wrap" data-seg="aspect" id="photoAspectSeg">
             <button data-val="1:1">1:1 Post</button><button data-val="4:5">4:5</button><button data-val="9:16">9:16 Story</button><button data-val="16:9">16:9</button><button data-val="photo">ෆොටෝ එකේ size</button>
           </div>
         </div>
@@ -288,7 +288,7 @@
         <h3>✨ Effects</h3>
         <div class="fxgrid small" data-seg="photoFx.type" id="photoFxGrid"></div>
         <div id="photoEmojiRow" hidden><div class="emojigrid small" id="photoEmojiGrid"></div></div>
-        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="photoFx.density" min="0.3" max="2.5" step="0.1"></label>
+        <label class="row"><span>Effects ගාණ (අඩු ↔ වැඩි)</span><input type="range" data-bind="photoFx.density" min="0.3" max="2.5" step="0.1"></label>
         <label class="row"><span>රටාව මාරු කරන්න</span><input type="range" data-bind="photoFx.seed" min="0" max="40" step="1"></label>
         <div class="colors"><label><input type="color" data-bind="photoFx.color"><span>Effect පාට</span></label></div>
         </div>
@@ -323,7 +323,7 @@
             <button data-val="bl">↙</button><button data-val="bc">⬇</button><button data-val="br">↘</button>
           </div>
         </div>
-        <label class="row"><span>ප්‍රමාණය</span><input type="range" data-bind="watermark.size" min="0.018" max="0.07" step="0.001"></label>
+        <label class="row"><span>ලාංඡනයේ ප්‍රමාණය</span><input type="range" data-bind="watermark.size" min="0.018" max="0.07" step="0.001"></label>
         <label class="row"><span>පෙනෙන ප්‍රමාණය</span><input type="range" data-bind="watermark.opacity" min="0.2" max="1" step="0.05"></label>
         <label class="row"><span>සෙවනැල්ල</span><input type="range" data-bind="watermark.shadow" min="0" max="1" step="0.05"></label>
         <div class="colors"><label><input type="color" data-bind="watermark.color"><span>පාට</span></label></div>
