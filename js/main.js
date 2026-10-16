@@ -817,9 +817,8 @@ function setAppMode(m) {
   $('#photoFxBox').hidden = vid; // video එකට effects තියෙන්නේ Video tab එකේ
   selId = null;
   updateStickerPanel();
-  // Size බොත්තම් (උඩ තියෙන ඒවයි ෆොටෝ tab එකේ ඒවයි) දැන් තියෙන mode එකේ size එක මාරු කරනවා
+  // Canvas එක උඩ size බොත්තම් දැන් තියෙන mode එකේ size එක මාරු කරනවා
   $('#aspectSeg').dataset.seg = vid ? 'video.aspect' : 'aspect';
-  $('#photoAspectSeg').dataset.seg = vid ? 'video.aspect' : 'aspect';
   // අකුරු tab එකේ ප්‍රමාණය/තැන controls දැන් mode එකේ text box එකට bind කරනවා
   for (const el of $$('[data-bind*="textBox."]')) el.dataset.bind = (vid ? 'video.' : '') + el.dataset.bind.replace(/^video\./, '');
   for (const el of $$('[data-seg*="textBox."]')) el.dataset.seg = (vid ? 'video.' : '') + el.dataset.seg.replace(/^video\./, '');
