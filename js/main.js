@@ -124,6 +124,7 @@ function updateTransport(tl) {
   scrub.max = String(tl.D);
   const t = player.t ?? Math.min(tl.revealEnd + 0.2, tl.D);
   if (!scrubbing) scrub.value = String(t);
+  paintRange(scrub);
   $('#timeLbl').textContent = `${fmt(t)} / ${fmt(tl.D)}s`;
   $('#btnPlay').textContent = player.playing ? '⏸' : '▶';
   $('#autoLenOut').textContent = `තත්පර ${fmt(tl.auto)}`;
@@ -217,6 +218,7 @@ function updateMusicUI() {
   $('#musicName').textContent = assets.music ? `🎵 ${assets.musicName} (${mmss(assets.music.duration)})` : 'තවම සින්දුවක් තෝරලා නෑ';
   $('#startOut').textContent = mmss(a.start);
   if (assets.music) $('#musicStart').max = String(Math.max(0, assets.music.duration - 1));
+  paintRange($('#musicStart'));
   if (a.src === 'file' && $('[data-pane=music]').classList.contains('on')) {
     drawWave($('#wave'), assets.music, a.start, player.D, { on: '#f0cf95', off: '#3a4d6b', window: 'rgba(240,207,149,.12)' });
   }
@@ -304,6 +306,13 @@ function syncInputs() {
     const v = String(getPath(state, seg.dataset.seg));
     for (const b of $$('button[data-val]', seg)) b.classList.toggle('on', b.dataset.val === v);
   }
+  for (const r of $$('input[type=range]')) paintRange(r);
+}
+
+// Slider එකේ පිරිලා තියෙන කොටසට gradient එක (CSS --p)
+function paintRange(r) {
+  const min = parseFloat(r.min) || 0, max = parseFloat(r.max) || 100;
+  r.style.setProperty('--p', `${(((parseFloat(r.value) - min) / (max - min || 1)) * 100).toFixed(1)}%`);
 }
 
 // ---------- Fonts ----------
@@ -543,7 +552,7 @@ function setAppMode(m) {
   // අකුරු tab එකේ ප්‍රමාණය/තැන controls දැන් mode එකේ text box එකට bind කරනවා
   for (const el of $$('[data-bind*="textBox."]')) el.dataset.bind = (vid ? 'video.' : '') + el.dataset.bind.replace(/^video\./, '');
   for (const el of $$('[data-seg*="textBox."]')) el.dataset.seg = (vid ? 'video.' : '') + el.dataset.seg.replace(/^video\./, '');
-  $('#btnExport').textContent = vid ? '🎬 Video එක' : '💾 Save';
+  $('#btnExport').textContent = vid ? '🎬 හදන්න' : '💾 Save';
   const cur = $('#tabs button.on')?.dataset.tab;
   if (vid) selectTab('video');
   else if (cur === 'video' || cur === 'music') selectTab('text');
@@ -823,6 +832,11 @@ async function shareFile(file) {
 // ---------- Wiring ----------
 
 function wire() {
+  document.addEventListener('input', (e) => { if (e.target.type === 'range') paintRange(e.target); });
+  // Mobile එකේ ටයිප් කරද්දි යට tab bar එක හංගනවා (keyboard එකට ඉඩ)
+  document.addEventListener('focusin', (e) => { if (e.target.matches('textarea, input[type=text]')) document.body.classList.add('typing'); });
+  document.addEventListener('focusout', () => document.body.classList.remove('typing'));
+
   bindInputs();
 
   for (const b of $$('#tabs button')) b.addEventListener('click', () => selectTab(b.dataset.tab));
