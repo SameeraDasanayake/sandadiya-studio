@@ -800,6 +800,13 @@ function selectTab(name) {
   if (name === 'music') requestAnimationFrame(updateMusicUI); // canvas එක පේනවා නම් විතරයි waveform අඳින්න පුළුවන්
 }
 
+// උඩ bar එකේ ඔක්කොම එක පේළියට ගැලපෙන්නේ නැත්නම් (පොඩි screen / ලොකු font) icons විතරක් පෙන්නනවා
+function fitTopbar() {
+  const bar = $('.topbar');
+  bar.classList.remove('compact');
+  if (bar.scrollWidth > bar.clientWidth + 1) bar.classList.add('compact');
+}
+
 function setAppMode(m) {
   state.mode = m;
   const vid = m === 'video';
@@ -814,7 +821,9 @@ function setAppMode(m) {
   // අකුරු tab එකේ ප්‍රමාණය/තැන controls දැන් mode එකේ text box එකට bind කරනවා
   for (const el of $$('[data-bind*="textBox."]')) el.dataset.bind = (vid ? 'video.' : '') + el.dataset.bind.replace(/^video\./, '');
   for (const el of $$('[data-seg*="textBox."]')) el.dataset.seg = (vid ? 'video.' : '') + el.dataset.seg.replace(/^video\./, '');
-  $('#btnExport').textContent = vid ? '🎬 හදන්න' : '💾 Save';
+  $('#btnExport').innerHTML = vid ? '🎬<span class="lbl"> හදන්න</span>' : '💾<span class="lbl"> Save</span>';
+  $('#btnExport').title = vid ? 'Video එක හදන්න' : 'Save';
+  fitTopbar();
   const cur = $('#tabs button.on')?.dataset.tab;
   if (vid) selectTab('video');
   else if (cur === 'video' || cur === 'music') selectTab('text');
@@ -1223,6 +1232,8 @@ function wire() {
 
   document.fonts.addEventListener('loadingdone', () => { thumbKey = ''; scheduleRender(); });
   new ResizeObserver(scheduleRender).observe(stage);
+  new ResizeObserver(fitTopbar).observe($('.topbar'));
+  document.fonts.ready.then(fitTopbar);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(state); });
 }
 

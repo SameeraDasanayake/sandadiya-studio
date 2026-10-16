@@ -1,6 +1,6 @@
 // Offline වැඩ කරන්න app එකේ files cache කරනවා.
 // Internet තියෙනවා නම් අලුත්ම එක ගන්නවා (updates ඉක්මනට එන්න), නැත්නම් / හෙමින් නම් cache එකෙන්.
-const CACHE = 'sandadiya-v6';
+const CACHE = 'sandadiya-v7';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/main.js', 'js/render.js', 'js/markup.js', 'js/state.js', 'js/idb.js',

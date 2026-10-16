@@ -438,10 +438,10 @@ dialog::backdrop { background: rgba(3, 6, 14, 0.6); -webkit-backdrop-filter: blu
 
   .stage-wrap { padding: 8px 10px 4px; gap: 8px; }
   /* උඩ bar එක: වම් පැත්තේ ගෙනයන්න/Highlight, දකුණේ size (1:1, 4:5, 9:16, 16:9) */
-  .modebar { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
-  #modeSeg { flex: 1 1 auto; min-width: 0; }
-  #modeSeg button { flex: 1; padding: 6px 8px; }
-  #aspectSeg { flex: 0 0 auto; }
+  /* ඉඩ නැත්නම් size බොත්තම් පහළ පේළියට මැදට යනවා (font එක ලොකු කරලා තිබ්බත් එකිනෙකා උඩට යන්නේ නෑ) */
+  .modebar { flex-wrap: wrap; justify-content: center; gap: 6px; }
+  #modeSeg, #aspectSeg { flex: 0 0 auto; }
+  #modeSeg button { padding: 6px 12px; }
   #aspectSeg button { padding: 6px 8px; }
   .stage { border-radius: var(--r); }
   .transport { margin: 0 auto; width: 100%; max-width: 420px; }
@@ -535,10 +535,16 @@ dialog::backdrop { background: rgba(3, 6, 14, 0.6); -webkit-backdrop-filter: blu
 @media (max-width: 440px) {
   /* පොඩි phone වල ගෙනයන්න/Highlight icons විතරයි, size බොත්තම් වලට ඉඩ හම්බෙන්න */
   #modeSeg .lbl { display: none; }
-  #modeSeg button { font-size: 17px; padding: 4px 6px; }
+  #modeSeg button { font-size: 17px; padding: 4px 12px; }
   #aspectSeg button { padding: 6px 7px; font-size: 12.5px; }
   .topbar { gap: 6px; }
   .brand-logo { width: 32px; height: 32px; }
   #appModeSeg button { padding: 6px 9px; font-size: 14px; }
   #btnExport { padding: 8px 11px; font-size: 14px; }
 }
+
+/* උඩ bar එකට ඉඩ මදි නම් (JS එකෙන් .compact දානවා) icons විතරයි */
+.topbar.compact .lbl { display: none; }
+.topbar.compact #appModeSeg button { padding: 6px 12px; font-size: 17px; }
+.topbar.compact #btnExport { padding: 8px 13px; font-size: 17px; }
+.topbar { min-width: 0; }
