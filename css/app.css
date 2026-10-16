@@ -430,16 +430,19 @@ dialog::backdrop { background: rgba(3, 6, 14, 0.6); -webkit-backdrop-filter: blu
    ============================================================ */
 @media (max-width: 600px) {
   .topbar { padding: 8px 10px; padding-top: max(8px, env(safe-area-inset-top)); gap: 8px; }
-  .brand, .hide-sm, .hint, .modebar .seg.small { display: none; }
+  .brand, .hide-sm, .hint { display: none; }
   .spacer { display: none; }
   #appModeSeg { margin: 0 auto; }
   #appModeSeg button { padding: 7px 12px; }
   #btnExport { padding: 9px 13px; }
 
   .stage-wrap { padding: 8px 10px 4px; gap: 8px; }
-  .modebar { justify-content: center; }
-  .modebar .seg { flex: 1; max-width: 360px; }
-  .modebar .seg button { flex: 1; }
+  /* උඩ bar එක: වම් පැත්තේ ගෙනයන්න/Highlight, දකුණේ size (1:1, 4:5, 9:16, 16:9) */
+  .modebar { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+  #modeSeg { flex: 1 1 auto; min-width: 0; }
+  #modeSeg button { flex: 1; padding: 6px 8px; }
+  #aspectSeg { flex: 0 0 auto; }
+  #aspectSeg button { padding: 6px 8px; }
   .stage { border-radius: var(--r); }
   .transport { margin: 0 auto; width: 100%; max-width: 420px; }
 
@@ -529,3 +532,13 @@ dialog::backdrop { background: rgba(3, 6, 14, 0.6); -webkit-backdrop-filter: blu
   .emojigrid { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); }
 }
 #photoFxBox[hidden] { display: none; }
+@media (max-width: 440px) {
+  /* පොඩි phone වල ගෙනයන්න/Highlight icons විතරයි, size බොත්තම් වලට ඉඩ හම්බෙන්න */
+  #modeSeg .lbl { display: none; }
+  #modeSeg button { font-size: 17px; padding: 4px 6px; }
+  #aspectSeg button { padding: 6px 7px; font-size: 12.5px; }
+  .topbar { gap: 6px; }
+  .brand-logo { width: 32px; height: 32px; }
+  #appModeSeg button { padding: 6px 9px; font-size: 14px; }
+  #btnExport { padding: 8px 11px; font-size: 14px; }
+}
